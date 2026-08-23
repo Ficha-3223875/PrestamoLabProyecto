@@ -3,46 +3,34 @@ package com.example.prstamolabctma
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.prstamolabctma.ui.theme.PréstamoLabCTMATheme
+import androidx.activity.viewModels
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.compose.rememberNavController
+import com.example.prstamolabctma.data.repository.InMemoryPrestamoRepository
+import com.example.prstamolabctma.navigation.NavGraph
+import com.example.prstamolabctma.viewmodel.PrestamoViewModel
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            PréstamoLabCTMATheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+
+    private val viewModel: PrestamoViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val repository = InMemoryPrestamoRepository()
+                return PrestamoViewModel(repository) as T
             }
         }
     }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            // Inicializar equipos al arrancar
+            viewModel.cargarEquipos()
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    PréstamoLabCTMATheme {
-        Greeting("Android")
+            // Crear NavController y pasar al NavGraph
+            val navController = rememberNavController()
+            NavGraph(navController, viewModel)
+        }
     }
 }
-
