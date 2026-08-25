@@ -49,18 +49,19 @@ fun SolicitudScreen(
 
         Button(
             onClick = {
-                val horas = duracion.toIntOrNull() ?: 0
-                viewModel.crearSolicitud(equipoId, destino, proposito, horas)
-
-                // 👇 ahora sí funciona
-                navController.navigate(Destino.MisSolicitudes.ruta)
+                viewModel.crearSolicitud(
+                    equipoId = equipoId,
+                    destino = destino,
+                    proposito = proposito,
+                    horasTexto = duracion // ✅ ahora se pasa el String directamente
+                )
+                navController.navigate(route = Destino.MisSolicitudes.ruta)
             },
             modifier = Modifier.padding(top = 16.dp)
         ) {
             Text("Guardar")
-
-
         }
+
         Button(
             onClick = { navController.popBackStack() },
             modifier = Modifier.padding(top = 8.dp)
