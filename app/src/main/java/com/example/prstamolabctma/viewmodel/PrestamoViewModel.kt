@@ -1,10 +1,9 @@
 package com.example.prstamolabctma.viewmodel
-import com.example.prstamolabctma.model.EstadoEquipo
-
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.prstamolabctma.data.repository.PrestamoRepository
+import com.example.prstamolabctma.model.EstadoEquipo
 import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.model.SolicitudPrestamo
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,29 +20,40 @@ class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel(
     }
 
     fun crearSolicitud(equipoId: Int, destino: String, proposito: String, horasTexto: String) {
-        // Validar que horas sea un número
-        val horas = horasTexto.toIntOrNull()
-        if (horas == null) {
+
+        // 1. Validar Destino (Obligatorio)
+        if (destino.isBlank()) {
             _uiState.value = _uiState.value.copy(
-                mensaje = "La duración debe ser un número válido."
+                mensaje = "El destino es obligatorio."
             )
             return
         }
 
-        // Validar rango permitido
-        if (horas !in 1..8) {
+        // 2. Validar Propósito (Entre 10 y 180 caracteres)
+        val propositoLimpio = proposito.trim()
+        if (propositoLimpio.length < 10 || propositoLimpio.length > 180) {
+            _uiState.value = _uiState.value.copy(
+                mensaje = "El propósito debe tener entre 10 y 180 caracteres."
+            )
+            return
+        }
+
+        // 3. Validar Duración (Número válido entre 1 y 8 horas)
+        val horas = horasTexto.toIntOrNull()
+        if (horas == null || horas !in 1..8) {
             _uiState.value = _uiState.value.copy(
                 mensaje = "La duración debe estar entre 1 y 8 horas."
             )
             return
         }
 
+        // --- Registro exitoso si pasa todas las validaciones ---
         val solicitudesActualizadas = _uiState.value.solicitudes.toMutableList()
         val nuevaSolicitud = SolicitudPrestamo(
             id = solicitudesActualizadas.size + 1,
             equipoId = equipoId,
             ambienteDestino = destino,
-            proposito = proposito,
+            proposito = propositoLimpio,
             duracionHoras = horas,
             estado = EstadoSolicitud.SOLICITADA
         )
@@ -58,12 +68,9 @@ class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel(
         _uiState.value = _uiState.value.copy(
             solicitudes = solicitudesActualizadas,
             equipos = equiposActualizados,
-            mensaje = null // limpiar mensaje si todo salió bien
+            mensaje = "Solicitud registrada con éxito." // Mensaje de éxito o null
         )
     }
-
-
-
 
     fun cancelarSolicitud(id: Int) {
         val solicitudesActualizadas = _uiState.value.solicitudes.map { solicitud ->
@@ -84,6 +91,4 @@ class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel(
             equipos = equiposActualizados
         )
     }
-
 }
-
