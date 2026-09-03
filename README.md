@@ -107,3 +107,5 @@ El incremento cumple con la mayoría de criterios de aceptación. Se identificó
 | Texto no truncado | Ningún texto esencial queda cortado o ilegible. | ✅ |
 | Consistencia | Los cambios de estado (ej. cancelar solicitud) se reflejan en catálogo y detalle. | ✅ |
 
+
+
