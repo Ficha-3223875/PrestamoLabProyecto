@@ -1,12 +1,14 @@
 package com.example.prstamolabctma.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.prstamolabctma.data.repository.PrestamoRepository
 import com.example.prstamolabctma.model.EstadoEquipo
 import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.model.SolicitudPrestamo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel() {
 
@@ -14,17 +16,21 @@ class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel(
     val uiState: StateFlow<PrestamoUiState> = _uiState
 
     init {
-        cargarEquipos()
-        actualizarSolicitudes()
+        viewModelScope.launch {
+            cargarEquiposInterno()
+            actualizarSolicitudesInterno()
+        }
     }
 
     fun cargarEquipos() {
-        _uiState.value = _uiState.value.copy(
-            equipos = repository.obtenerEquipos()
-        )
+        viewModelScope.launch { cargarEquiposInterno() }
     }
 
-    private fun actualizarSolicitudes() {
+    private suspend fun cargarEquiposInterno() {
+        _uiState.value = _uiState.value.copy(equipos = repository.obtenerEquipos())
+    }
+
+    private suspend fun actualizarSolicitudesInterno() {
         _uiState.value = _uiState.value.copy(
             solicitudes = repository.obtenerSolicitudes()
         )
@@ -67,51 +73,55 @@ class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel(
             return
         }
 
-        // 4. Verificar disponibilidad previa en el repositorio
-        val equipo = repository.obtenerEquipo(equipoId)
-        if (equipo == null || equipo.estado != EstadoEquipo.DISPONIBLE) {
-            _uiState.value = _uiState.value.copy(
-                mensaje = "El equipo seleccionado no está disponible.",
-                guardando = false
-            )
-            return
-        }
+        viewModelScope.launch {
+            // 4. Verificar disponibilidad previa en el repositorio
+            val equipo = repository.obtenerEquipo(equipoId)
+            if (equipo == null || equipo.estado != EstadoEquipo.DISPONIBLE) {
+                _uiState.value = _uiState.value.copy(
+                    mensaje = "El equipo seleccionado no está disponible.",
+                    guardando = false
+                )
+                return@launch
+            }
 
-        // 5. Intentar guardar mediante el repositorio
-        val nuevaSolicitud = SolicitudPrestamo(
-            id = repository.obtenerSolicitudes().size + 1,
-            equipoId = equipoId,
-            ambienteDestino = destino,
-            proposito = propositoLimpio,
-            duracionHoras = horas,
-            estado = EstadoSolicitud.SOLICITADA
-        )
-
-        val guardadoExitoso = repository.crearSolicitud(nuevaSolicitud)
-
-        if (guardadoExitoso) {
-            _uiState.value = _uiState.value.copy(
-                equipos = repository.obtenerEquipos(),
-                solicitudes = repository.obtenerSolicitudes(),
-                mensaje = "Solicitud registrada con éxito.",
-                guardando = false
+            // 5. Intentar guardar mediante el repositorio
+            val nuevaSolicitud = SolicitudPrestamo(
+                id = repository.obtenerSolicitudes().size + 1,
+                equipoId = equipoId,
+                ambienteDestino = destino,
+                proposito = propositoLimpio,
+                duracionHoras = horas,
+                estado = EstadoSolicitud.SOLICITADA
             )
-        } else {
-            _uiState.value = _uiState.value.copy(
-                mensaje = "No se pudo registrar la solicitud.",
-                guardando = false
-            )
+
+            val guardadoExitoso = repository.crearSolicitud(nuevaSolicitud)
+
+            if (guardadoExitoso) {
+                _uiState.value = _uiState.value.copy(
+                    equipos = repository.obtenerEquipos(),
+                    solicitudes = repository.obtenerSolicitudes(),
+                    mensaje = "Solicitud registrada con éxito.",
+                    guardando = false
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    mensaje = "No se pudo registrar la solicitud.",
+                    guardando = false
+                )
+            }
         }
     }
 
     fun cancelarSolicitud(id: Int) {
-        val cancelado = repository.cancelarSolicitud(id)
-        if (cancelado) {
-            _uiState.value = _uiState.value.copy(
-                equipos = repository.obtenerEquipos(),
-                solicitudes = repository.obtenerSolicitudes(),
-                mensaje = "Solicitud cancelada con éxito."
-            )
+        viewModelScope.launch {
+            val cancelado = repository.cancelarSolicitud(id)
+            if (cancelado) {
+                _uiState.value = _uiState.value.copy(
+                    equipos = repository.obtenerEquipos(),
+                    solicitudes = repository.obtenerSolicitudes(),
+                    mensaje = "Solicitud cancelada con éxito."
+                )
+            }
         }
     }
 }

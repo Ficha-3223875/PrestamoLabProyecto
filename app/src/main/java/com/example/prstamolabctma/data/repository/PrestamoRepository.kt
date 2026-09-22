@@ -4,10 +4,10 @@ import com.example.prstamolabctma.model.Equipo
 import com.example.prstamolabctma.model.SolicitudPrestamo
 
 interface PrestamoRepository {
-    fun obtenerEquipos(): List<Equipo>
-    fun obtenerEquipo(id: Int): Equipo?
-    fun obtenerSolicitudes(): List<SolicitudPrestamo>
-    fun obtenerSolicitud(id: Int): SolicitudPrestamo?
-    fun crearSolicitud(solicitud: SolicitudPrestamo): Boolean
-    fun cancelarSolicitud(id: Int): Boolean
+    suspend fun obtenerEquipos(): List<Equipo>
+    suspend fun obtenerEquipo(id: Int): Equipo?
+    suspend fun obtenerSolicitudes(): List<SolicitudPrestamo>
+    suspend fun obtenerSolicitud(id: Int): SolicitudPrestamo?
+    suspend fun crearSolicitud(solicitud: SolicitudPrestamo): Boolean
+    suspend fun cancelarSolicitud(id: Int): Boolean
 }
