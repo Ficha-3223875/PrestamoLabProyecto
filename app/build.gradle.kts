@@ -61,4 +61,5 @@ dependencies {
     ksp("androidx.room:room-compiler:2.7.2")
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3") // O la versión que maneje tu proyecto
 }

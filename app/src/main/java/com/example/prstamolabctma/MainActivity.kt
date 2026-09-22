@@ -29,11 +29,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Sembrar datos iniciales (solo si la BD está vacía) y luego cargar
+            // Sembrar datos iniciales si la base de datos está vacía (Semana 6)
             LaunchedEffect(Unit) {
                 val db = AppDatabase.getInstance(applicationContext)
                 RoomPrestamoRepository(db.equipoDao(), db.solicitudDao()).sembrarSiVacio()
-                viewModel.cargarEquipos()
+                // Nota: Ya no se requiere viewModel.cargarEquipos() porque el Flow es reactivo (Semana 7)
             }
 
             val navController = rememberNavController()

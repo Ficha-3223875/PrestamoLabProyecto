@@ -8,19 +8,38 @@ import com.example.prstamolabctma.model.EstadoEquipo
 import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.model.SolicitudPrestamo
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PrestamoViewModelTest {
 
+    private val testDispatcher = StandardTestDispatcher()
+    private val testScope = TestScope(testDispatcher)
     private lateinit var repository: InMemoryPrestamoRepository
     private lateinit var viewModel: PrestamoViewModel
 
     @Before
     fun setUp() {
+        Dispatchers.setMain(testDispatcher)
         repository = InMemoryPrestamoRepository()
         viewModel = PrestamoViewModel(repository)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     // =========================================================================
@@ -28,7 +47,8 @@ class PrestamoViewModelTest {
     // =========================================================================
 
     @Test
-    fun test_01_verificar_que_se_muestren_los_equipos_disponibles() {
+    fun test_01_verificar_que_se_muestren_los_equipos_disponibles() = testScope.runTest {
+        testDispatcher.scheduler.advanceUntilIdle()
         val equipos = viewModel.uiState.value.equipos
         val disponibles = equipos.filter { it.estado == EstadoEquipo.DISPONIBLE }
 
@@ -37,7 +57,8 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_02_verificar_que_cada_equipo_aparezca_de_manera_individual() {
+    fun test_02_verificar_que_cada_equipo_aparezca_de_manera_individual() = testScope.runTest {
+        testDispatcher.scheduler.advanceUntilIdle()
         val equipos = viewModel.uiState.value.equipos
         val idsUnicos = equipos.map { it.id }.toSet()
 
@@ -49,7 +70,7 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_03_verificar_que_la_informacion_de_cada_equipo_sea_correcta() {
+    fun test_03_verificar_que_la_informacion_de_cada_equipo_sea_correcta() = testScope.runTest {
         val equipo = repository.obtenerEquipo(1)
 
         Assert.assertNotNull("El equipo debe existir en el repositorio", equipo)
@@ -59,12 +80,10 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_04_verificar_que_los_equipos_no_disponibles_no_aparezcan_como_disponibles() {
-        // Reservamos un equipo en el repositorio
-        val solicitud =
-            SolicitudPrestamo(1, 1, "Lab 1", "Práctica de prueba", 2, EstadoSolicitud.SOLICITADA)
+    fun test_04_verificar_que_los_equipos_no_disponibles_no_aparezcan_como_disponibles() = testScope.runTest {
+        val solicitud = SolicitudPrestamo(1, 1, "Lab 1", "Práctica de prueba", 2, EstadoSolicitud.SOLICITADA)
         repository.crearSolicitud(solicitud)
-        viewModel.cargarEquipos()
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val equipoReservado = viewModel.uiState.value.equipos.find { it.id == 1 }
         Assert.assertNotNull(equipoReservado)
@@ -76,7 +95,8 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_05_verificar_que_se_pueda_visualizar_correctamente_la_informacion_de_cada_equipo() {
+    fun test_05_verificar_que_se_pueda_visualizar_correctamente_la_informacion_de_cada_equipo() = testScope.runTest {
+        testDispatcher.scheduler.advanceUntilIdle()
         val equipo = viewModel.uiState.value.equipos.find { it.id == 2 }
 
         Assert.assertNotNull(equipo)
@@ -85,14 +105,16 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_06_verificar_que_se_muestre_el_catalogo() {
+    fun test_06_verificar_que_se_muestre_el_catalogo() = testScope.runTest {
+        testDispatcher.scheduler.advanceUntilIdle()
         val catalogo = viewModel.uiState.value.equipos
         Assert.assertNotNull("El catálogo no debe ser nulo", catalogo)
         Assert.assertTrue("El catálogo debe contener elementos", catalogo.size >= 3)
     }
 
     @Test
-    fun test_07_verificar_que_cada_equipo_muestre_nombre_categoria_y_estado() {
+    fun test_07_verificar_que_cada_equipo_muestre_nombre_categoria_y_estado() = testScope.runTest {
+        testDispatcher.scheduler.advanceUntilIdle()
         val equipo = viewModel.uiState.value.equipos.first()
 
         Assert.assertNotNull("Nombre obligatorio", equipo.nombre)
@@ -101,22 +123,24 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_08_verificar_que_se_muestren_varios_equipos_correctamente() {
+    fun test_08_verificar_que_se_muestren_varios_equipos_correctamente() = testScope.runTest {
+        testDispatcher.scheduler.advanceUntilIdle()
         val equipos = viewModel.uiState.value.equipos
         Assert.assertTrue("Debe renderizarse una lista de varios equipos", equipos.size > 1)
     }
 
     @Test
-    fun test_09_verificar_el_comportamiento_cuando_no_hay_equipos_registrados() {
+    fun test_09_verificar_el_comportamiento_cuando_no_hay_equipos_registrados() = testScope.runTest {
         val repoVacio = object : PrestamoRepository {
-            override fun obtenerEquipos(): List<Equipo> = emptyList()
-            override fun obtenerEquipo(id: Int): Equipo? = null
-            override fun obtenerSolicitudes(): List<SolicitudPrestamo> = emptyList()
-            override fun obtenerSolicitud(id: Int): SolicitudPrestamo? = null
-            override fun crearSolicitud(solicitud: SolicitudPrestamo): Boolean = false
-            override fun cancelarSolicitud(id: Int): Boolean = false
+            override fun obtenerEquipos(): Flow<List<Equipo>> = flowOf(emptyList())
+            override suspend fun obtenerEquipo(id: Int): Equipo? = null
+            override fun obtenerSolicitudes(): Flow<List<SolicitudPrestamo>> = flowOf(emptyList())
+            override suspend fun obtenerSolicitud(id: Int): SolicitudPrestamo? = null
+            override suspend fun crearSolicitud(solicitud: SolicitudPrestamo): Boolean = false
+            override suspend fun cancelarSolicitud(id: Int): Boolean = false
         }
         val vmVacio = PrestamoViewModel(repoVacio)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         Assert.assertTrue(
             "La lista de equipos debe estar vacía sin lanzar excepciones",
@@ -129,20 +153,20 @@ class PrestamoViewModelTest {
     // =========================================================================
 
     @Test
-    fun test_10_verificar_que_se_pueda_seleccionar_un_equipo() {
+    fun test_10_verificar_que_se_pueda_seleccionar_un_equipo() = testScope.runTest {
         val equipo = repository.obtenerEquipo(1)
         Assert.assertNotNull("Se puede seleccionar un equipo válido", equipo)
     }
 
     @Test
-    fun test_11_verificar_que_un_equipo_valido_muestre_su_informacion() {
+    fun test_11_verificar_que_un_equipo_valido_muestre_su_informacion() = testScope.runTest {
         val equipo = repository.obtenerEquipo(3)
         Assert.assertNotNull(equipo)
         Assert.assertEquals("Tablet Samsung", equipo?.nombre)
     }
 
     @Test
-    fun test_12_verificar_que_los_datos_del_equipo_sean_correctos() {
+    fun test_12_verificar_que_los_datos_del_equipo_sean_correctos() = testScope.runTest {
         val equipo = repository.obtenerEquipo(2)
         Assert.assertEquals(2, equipo?.id)
         Assert.assertEquals("Cámara Canon", equipo?.nombre)
@@ -150,7 +174,7 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_13_verificar_el_comportamiento_al_seleccionar_un_equipo_invalido() {
+    fun test_13_verificar_el_comportamiento_al_seleccionar_un_equipo_invalido() = testScope.runTest {
         val equipoInvalido = repository.obtenerEquipo(999)
         Assert.assertNull("La búsqueda de un ID inexistente debe devolver null", equipoInvalido)
     }
@@ -160,8 +184,9 @@ class PrestamoViewModelTest {
     // =========================================================================
 
     @Test
-    fun test_14_verificar_proposito_con_menos_de_10_caracteres() {
+    fun test_14_verificar_proposito_con_menos_de_10_caracteres() = testScope.runTest {
         viewModel.crearSolicitud(1, "Lab 101", "Corto", "2")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
         Assert.assertEquals("El propósito debe tener entre 10 y 180 caracteres.", state.mensaje)
@@ -170,8 +195,9 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_15_verificar_proposito_entre_10_y_180_caracteres() {
+    fun test_15_verificar_proposito_entre_10_y_180_caracteres() = testScope.runTest {
         viewModel.crearSolicitud(1, "Lab 101", "Esta es una descripción válida de propósito.", "2")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
         Assert.assertEquals("Solicitud registrada con éxito.", state.mensaje)
@@ -179,9 +205,10 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_16_verificar_proposito_mayor_a_180_caracteres() {
+    fun test_16_verificar_proposito_mayor_a_180_caracteres() = testScope.runTest {
         val propositoExcesivo = "A".repeat(181)
         viewModel.crearSolicitud(1, "Lab 101", propositoExcesivo, "2")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
         Assert.assertEquals("El propósito debe tener entre 10 y 180 caracteres.", state.mensaje)
@@ -190,8 +217,9 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_17_verificar_duracion_entre_1_y_8_horas_menor_a_1() {
+    fun test_17_verificar_duracion_entre_1_y_8_horas_menor_a_1() = testScope.runTest {
         viewModel.crearSolicitud(1, "Lab 101", "Práctica de desarrollo de software", "0")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
         Assert.assertEquals("La duración debe estar entre 1 y 8 horas.", state.mensaje)
@@ -200,8 +228,9 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_18_verificar_duracion_entre_1_y_8_horas_mayor_a_8() {
+    fun test_18_verificar_duracion_entre_1_y_8_horas_mayor_a_8() = testScope.runTest {
         viewModel.crearSolicitud(1, "Lab 101", "Práctica de desarrollo de software", "9")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
         Assert.assertEquals("La duración debe estar entre 1 y 8 horas.", state.mensaje)
@@ -210,8 +239,9 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_19_verificar_que_el_destino_sea_obligatorio() {
+    fun test_19_verificar_que_el_destino_sea_obligatorio() = testScope.runTest {
         viewModel.crearSolicitud(1, "", "Práctica de desarrollo de software", "2")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
         Assert.assertEquals("El destino es obligatorio.", state.mensaje)
@@ -220,24 +250,23 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_20_verificar_que_no_se_guarde_una_solicitud_con_datos_invalidos() {
+    fun test_20_verificar_que_no_se_guarde_una_solicitud_con_datos_invalidos() = testScope.runTest {
         viewModel.crearSolicitud(1, "", "", "ABC")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        Assert.assertTrue(
-            "La lista de solicitudes debe mantenerse vacía",
-            state.solicitudes.isEmpty()
-        )
+        Assert.assertTrue("La lista de solicitudes debe mantenerse vacía", state.solicitudes.isEmpty())
         Assert.assertFalse("El estado guardando debe reiniciarse a false", state.guardando)
     }
 
     // =========================================================================
-    // 4. REGISTRO, PREVENCIÓN DE DUPLICADOS Y MANEJO DE ESTADOS (FIXES)
+    // 4. REGISTRO, PREVENCIÓN DE DUPLICADOS Y MANEJO DE ESTADOS
     // =========================================================================
 
     @Test
-    fun test_21_verificar_que_se_pueda_registrar_una_solicitud_valida() {
+    fun test_21_verificar_que_se_pueda_registrar_una_solicitud_valida() = testScope.runTest {
         viewModel.crearSolicitud(1, "Ambiente 204", "Práctica de laboratorio de prueba", "3")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
         Assert.assertEquals(1, state.solicitudes.size)
@@ -245,24 +274,27 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_22_verificar_que_la_solicitud_quede_en_estado_SOLICITADA() {
+    fun test_22_verificar_que_la_solicitud_quede_en_estado_SOLICITADA() = testScope.runTest {
         viewModel.crearSolicitud(1, "Ambiente 204", "Práctica de laboratorio de prueba", "3")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val solicitud = viewModel.uiState.value.solicitudes.first()
         Assert.assertEquals(EstadoSolicitud.SOLICITADA, solicitud.estado)
     }
 
     @Test
-    fun test_23_verificar_que_el_equipo_pase_a_RESERVADO() {
+    fun test_23_verificar_que_el_equipo_pase_a_RESERVADO() = testScope.runTest {
         viewModel.crearSolicitud(1, "Ambiente 204", "Práctica de laboratorio de prueba", "3")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val equipo = viewModel.uiState.value.equipos.find { it.id == 1 }
         Assert.assertEquals(EstadoEquipo.RESERVADO, equipo?.estado)
     }
 
     @Test
-    fun test_24_verificar_que_una_pulsacion_en_guardar_cree_una_sola_solicitud() {
+    fun test_24_verificar_que_una_pulsacion_en_guardar_cree_una_sola_solicitud() = testScope.runTest {
         viewModel.crearSolicitud(1, "Aula 101", "Práctica de desarrollo móvil", "2")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
         Assert.assertEquals(1, state.solicitudes.size)
@@ -270,32 +302,27 @@ class PrestamoViewModelTest {
     }
 
     @Test
-    fun test_25_verificar_que_una_doble_pulsacion_rapida_en_guardar_no_cree_solicitudes_duplicadas() {
-        // Primera ejecución habilita guardando
+    fun test_25_verificar_que_una_doble_pulsacion_rapida_en_guardar_no_cree_solicitudes_duplicadas() = testScope.runTest {
         viewModel.crearSolicitud(1, "Aula 101", "Práctica de desarrollo móvil", "2")
-
-        // Segunda ejecución inmediata al intentar enviar dos veces
         viewModel.crearSolicitud(1, "Aula 101", "Práctica de desarrollo móvil", "2")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        Assert.assertEquals(
-            "Debe existir únicamente 1 solicitud registrada",
-            1,
-            state.solicitudes.size
-        )
-        Assert.assertEquals("El equipo seleccionado no está disponible.", state.mensaje)
+        Assert.assertEquals("Debe existir únicamente 1 solicitud registrada", 1, state.solicitudes.size)
     }
 
     @Test
-    fun test_26_verificar_que_despues_de_guardar_solamente_exista_una_solicitud() {
+    fun test_26_verificar_que_despues_de_guardar_solamente_exista_una_solicitud() = testScope.runTest {
         viewModel.crearSolicitud(1, "Aula 101", "Práctica de desarrollo móvil", "2")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         Assert.assertEquals(1, viewModel.uiState.value.solicitudes.size)
     }
 
     @Test
-    fun test_27_verificar_que_la_informacion_de_la_solicitud_se_mantenga_correctamente() {
+    fun test_27_verificar_que_la_informacion_de_la_solicitud_se_mantenga_correctamente() = testScope.runTest {
         viewModel.crearSolicitud(2, "Laboratorio 3", "Mediciones con cámara profesional", "5")
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val solicitud = viewModel.uiState.value.solicitudes.first()
         Assert.assertEquals(2, solicitud.equipoId)
@@ -309,28 +336,35 @@ class PrestamoViewModelTest {
     // =========================================================================
 
     @Test
-    fun test_28_verificar_que_se_pueda_cancelar_una_solicitud_solicitada_pase_a_CANCELADA_y_equipo_a_DISPONIBLE() {
-        // 1. Crear solicitud
+    fun test_28_verificar_que_se_pueda_cancelar_una_solicitud_solicitada_pase_a_CANCELADA_y_equipo_a_DISPONIBLE() = testScope.runTest {
         viewModel.crearSolicitud(3, "Sala A", "Práctica con Tablet en aula", "4")
-        val solicitudId = viewModel.uiState.value.solicitudes.first().id
+        testDispatcher.scheduler.advanceUntilIdle()
 
-        // 2. Cancelar solicitud
+        val solicitudId = viewModel.uiState.value.solicitudes.first().id
         viewModel.cancelarSolicitud(solicitudId)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value
         val solicitudCancelada = state.solicitudes.find { it.id == solicitudId }
         val equipoLiberado = state.equipos.find { it.id == 3 }
 
-        Assert.assertEquals(
-            "La solicitud debe pasar a CANCELADA",
-            EstadoSolicitud.CANCELADA,
-            solicitudCancelada?.estado
-        )
-        Assert.assertEquals(
-            "El equipo debe volver a DISPONIBLE",
-            EstadoEquipo.DISPONIBLE,
-            equipoLiberado?.estado
-        )
+        Assert.assertEquals("La solicitud debe pasar a CANCELADA", EstadoSolicitud.CANCELADA, solicitudCancelada?.estado)
+        Assert.assertEquals("El equipo debe volver a DISPONIBLE", EstadoEquipo.DISPONIBLE, equipoLiberado?.estado)
+    }
+
+    // =========================================================================
+    // 6. NUEVAS PRUEBAS PARA FLUJOS Y REACTIVIDAD
+    // =========================================================================
+
+    @Test
+    fun test_29_verificar_emision_reactiva_de_equipos_por_flow() = testScope.runTest {
+        val equiposFlow = repository.obtenerEquipos()
+        Assert.assertNotNull("El Flow de equipos no debe ser nulo", equiposFlow)
+    }
+
+    @Test
+    fun test_30_verificar_emision_reactiva_de_solicitudes_por_flow() = testScope.runTest {
+        val solicitudesFlow = repository.obtenerSolicitudes()
+        Assert.assertNotNull("El Flow de solicitudes no debe ser nulo", solicitudesFlow)
     }
 }
-

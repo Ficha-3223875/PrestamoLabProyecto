@@ -5,6 +5,9 @@ import com.example.prstamolabctma.data.local.dao.SolicitudDao
 import com.example.prstamolabctma.data.local.entity.EquipoEntity
 import com.example.prstamolabctma.data.local.entity.SolicitudEntity
 import com.example.prstamolabctma.model.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 class RoomPrestamoRepository(
     private val equipoDao: EquipoDao,
@@ -12,7 +15,8 @@ class RoomPrestamoRepository(
 ) : PrestamoRepository {
 
     suspend fun sembrarSiVacio() {
-        if (equipoDao.obtenerEquipos().isEmpty()) {
+        // Usamos .first() para leer la lista actual del Flow una vez al iniciar la app
+        if (equipoDao.obtenerEquipos().first().isEmpty()) {
             equipoDao.insertarEquipos(
                 listOf(
                     EquipoEntity(1, "Multímetro", CategoriaEquipo.ELECTRONICA, EstadoEquipo.DISPONIBLE),
@@ -23,14 +27,16 @@ class RoomPrestamoRepository(
         }
     }
 
-    override suspend fun obtenerEquipos(): List<Equipo> =
-        equipoDao.obtenerEquipos().map { it.toDomain() }
+    // 👈 Convertido a Flow con mapeo automático al modelo de dominio
+    override fun obtenerEquipos(): Flow<List<Equipo>> =
+        equipoDao.obtenerEquipos().map { lista -> lista.map { it.toDomain() } }
 
     override suspend fun obtenerEquipo(id: Int): Equipo? =
         equipoDao.obtenerEquipo(id)?.toDomain()
 
-    override suspend fun obtenerSolicitudes(): List<SolicitudPrestamo> =
-        solicitudDao.obtenerSolicitudes().map { it.toDomain() }
+    // 👈 Convertido a Flow con mapeo automático al modelo de dominio
+    override fun obtenerSolicitudes(): Flow<List<SolicitudPrestamo>> =
+        solicitudDao.obtenerSolicitudes().map { lista -> lista.map { it.toDomain() } }
 
     override suspend fun obtenerSolicitud(id: Int): SolicitudPrestamo? =
         solicitudDao.obtenerSolicitud(id)?.toDomain()

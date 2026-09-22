@@ -8,6 +8,7 @@ import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.model.SolicitudPrestamo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel() {
@@ -16,24 +17,19 @@ class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel(
     val uiState: StateFlow<PrestamoUiState> = _uiState
 
     init {
+        // Recolectar equipos de forma reactiva y automática (Semana 7)
         viewModelScope.launch {
-            cargarEquiposInterno()
-            actualizarSolicitudesInterno()
+            repository.obtenerEquipos().collect { listaEquipos ->
+                _uiState.value = _uiState.value.copy(equipos = listaEquipos)
+            }
         }
-    }
 
-    fun cargarEquipos() {
-        viewModelScope.launch { cargarEquiposInterno() }
-    }
-
-    private suspend fun cargarEquiposInterno() {
-        _uiState.value = _uiState.value.copy(equipos = repository.obtenerEquipos())
-    }
-
-    private suspend fun actualizarSolicitudesInterno() {
-        _uiState.value = _uiState.value.copy(
-            solicitudes = repository.obtenerSolicitudes()
-        )
+        // Recolectar solicitudes de forma reactiva y automática (Semana 7)
+        viewModelScope.launch {
+            repository.obtenerSolicitudes().collect { listaSolicitudes ->
+                _uiState.value = _uiState.value.copy(solicitudes = listaSolicitudes)
+            }
+        }
     }
 
     fun crearSolicitud(equipoId: Int, destino: String, proposito: String, horasTexto: String) {
@@ -84,9 +80,11 @@ class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel(
                 return@launch
             }
 
-            // 5. Intentar guardar mediante el repositorio
+            // 5. Obtener tamaño actual de solicitudes desde el flujo de forma segura
+            val cantidadActual = repository.obtenerSolicitudes().first().size
+
             val nuevaSolicitud = SolicitudPrestamo(
-                id = repository.obtenerSolicitudes().size + 1,
+                id = cantidadActual + 1,
                 equipoId = equipoId,
                 ambienteDestino = destino,
                 proposito = propositoLimpio,
@@ -98,8 +96,6 @@ class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel(
 
             if (guardadoExitoso) {
                 _uiState.value = _uiState.value.copy(
-                    equipos = repository.obtenerEquipos(),
-                    solicitudes = repository.obtenerSolicitudes(),
                     mensaje = "Solicitud registrada con éxito.",
                     guardando = false
                 )
@@ -117,8 +113,6 @@ class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel(
             val cancelado = repository.cancelarSolicitud(id)
             if (cancelado) {
                 _uiState.value = _uiState.value.copy(
-                    equipos = repository.obtenerEquipos(),
-                    solicitudes = repository.obtenerSolicitudes(),
                     mensaje = "Solicitud cancelada con éxito."
                 )
             }
