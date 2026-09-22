@@ -1,6 +1,5 @@
 package com.example.prstamolabctma
 
-import com.example.prstamolabctma.data.repository.InMemoryPrestamoRepository
 import com.example.prstamolabctma.model.EstadoEquipo
 import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.model.SolicitudPrestamo

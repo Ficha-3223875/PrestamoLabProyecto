@@ -1,13 +1,27 @@
 package com.example.prstamolabctma.ui.misprestamos
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.prstamolabctma.model.EstadoSolicitud
+import com.example.prstamolabctma.model.SolicitudPrestamo
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -17,9 +31,16 @@ fun SolicitudDetalleScreen(
     viewModel: PrestamoViewModel,
     onBack: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    var solicitud by remember { mutableStateOf<SolicitudPrestamo?>(null) }
+    var cargando by remember { mutableStateOf(true) }
 
-    val solicitud = viewModel.obtenerSolicitud(solicitudId)
+    LaunchedEffect(solicitudId) {
+        cargando = true
+        viewModel.obtenerSolicitud(solicitudId) { resultado ->
+            solicitud = resultado
+            cargando = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -35,109 +56,72 @@ fun SolicitudDetalleScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            if (solicitud == null) {
+            if (cargando) {
 
                 Text(
-                    text = "La solicitud no existe."
+                    text = "Cargando solicitud...",
+                    style = MaterialTheme.typography.bodyLarge
                 )
 
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
+            } else if (solicitud == null) {
 
-                Button(
-                    onClick = onBack
-                ) {
-                    Text("Volver")
-                }
+                Text(
+                    text = "La solicitud no existe.",
+                    style = MaterialTheme.typography.titleLarge
+                )
 
             } else {
 
+                val sol = solicitud!!
+
                 Text(
-                    text = "Solicitud #${solicitud.id}",
+                    text = "Solicitud #${sol.id}",
                     style = MaterialTheme.typography.headlineSmall
                 )
 
-                Spacer(
-                    modifier = Modifier.height(16.dp)
+                Text(
+                    text = "ID Equipo: ${sol.equipoId}"
                 )
 
                 Text(
-                    text = "Equipo ID: ${solicitud.equipoId}"
-                )
-
-                Spacer(
-                    modifier = Modifier.height(8.dp)
+                    text = "Ambiente / Destino: ${sol.ambienteDestino}"
                 )
 
                 Text(
-                    text = "Destino: ${solicitud.ambienteDestino}"
-                )
-
-                Spacer(
-                    modifier = Modifier.height(8.dp)
+                    text = "Propósito: ${sol.proposito}"
                 )
 
                 Text(
-                    text = "Propósito: ${solicitud.proposito}"
-                )
-
-                Spacer(
-                    modifier = Modifier.height(8.dp)
+                    text = "Duración: ${sol.duracionHoras} hora(s)"
                 )
 
                 Text(
-                    text = "Duración: ${solicitud.duracionHoras} horas"
+                    text = "Estado: ${sol.estado}"
                 )
 
-                Spacer(
-                    modifier = Modifier.height(8.dp)
-                )
-
-                Text(
-                    text = "Estado: ${solicitud.estado}"
-                )
-
-                Spacer(
-                    modifier = Modifier.height(24.dp)
-                )
-
-                if (solicitud.estado == EstadoSolicitud.SOLICITADA) {
+                if (sol.estado == EstadoSolicitud.SOLICITADA) {
 
                     Button(
                         onClick = {
-                            viewModel.cancelarSolicitud(solicitud.id)
+                            viewModel.cancelarSolicitud(sol.id)
+                            onBack()
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Cancelar solicitud")
                     }
-
-                    Spacer(
-                        modifier = Modifier.height(12.dp)
-                    )
                 }
+            }
 
-                uiState.mensaje?.let { mensaje ->
-
-                    Text(
-                        text = mensaje
-                    )
-
-                    Spacer(
-                        modifier = Modifier.height(12.dp)
-                    )
-                }
-
-                OutlinedButton(
-                    onClick = onBack,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Volver")
-                }
+            OutlinedButton(
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Volver")
             }
         }
     }

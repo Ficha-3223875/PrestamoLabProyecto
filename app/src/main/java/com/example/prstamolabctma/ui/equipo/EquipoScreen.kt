@@ -13,8 +13,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.prstamolabctma.model.Equipo
 import com.example.prstamolabctma.model.EstadoEquipo
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
 
@@ -26,7 +32,16 @@ fun EquipoScreen(
     onSolicitarClick: (Int) -> Unit,
     onBack: () -> Unit
 ) {
-    val equipo = viewModel.obtenerEquipo(equipoId)
+    var equipo by remember { mutableStateOf<Equipo?>(null) }
+    var cargando by remember { mutableStateOf(true) }
+
+    LaunchedEffect(equipoId) {
+        cargando = true
+        viewModel.obtenerEquipo(equipoId) { resultado ->
+            equipo = resultado
+            cargando = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -46,7 +61,14 @@ fun EquipoScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            if (equipo == null) {
+            if (cargando) {
+
+                Text(
+                    text = "Cargando información del equipo...",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+            } else if (equipo == null) {
 
                 Text(
                     text = "El equipo no existe.",
@@ -55,28 +77,30 @@ fun EquipoScreen(
 
             } else {
 
+                val equipoActual = equipo!!
+
                 Text(
-                    text = equipo.nombre,
+                    text = equipoActual.nombre,
                     style = MaterialTheme.typography.headlineSmall
                 )
 
                 Text(
-                    text = "ID: ${equipo.id}"
+                    text = "ID: ${equipoActual.id}"
                 )
 
                 Text(
-                    text = "Categoría: ${equipo.categoria}"
+                    text = "Categoría: ${equipoActual.categoria}"
                 )
 
                 Text(
-                    text = "Estado: ${equipo.estado}"
+                    text = "Estado: ${equipoActual.estado}"
                 )
 
-                if (equipo.estado == EstadoEquipo.DISPONIBLE) {
+                if (equipoActual.estado == EstadoEquipo.DISPONIBLE) {
 
                     Button(
                         onClick = {
-                            onSolicitarClick(equipo.id)
+                            onSolicitarClick(equipoActual.id)
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {

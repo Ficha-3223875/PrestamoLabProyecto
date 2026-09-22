@@ -8,8 +8,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -22,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.prstamolabctma.model.Equipo
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,49 +38,45 @@ fun SolicitudScreen(
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    var ambienteDestino by remember {
-        mutableStateOf("")
+    var equipo by remember { mutableStateOf<Equipo?>(null) }
+    var cargandoEquipo by remember { mutableStateOf(true) }
+
+    var ambienteDestino by remember { mutableStateOf("") }
+    var proposito by remember { mutableStateOf("") }
+    var duracionHoras by remember { mutableStateOf("") }
+
+    // Cargar información del equipo desde Room
+    LaunchedEffect(equipoId) {
+        cargandoEquipo = true
+        viewModel.obtenerEquipo(equipoId) { resultado ->
+            equipo = resultado
+            cargandoEquipo = false
+        }
     }
 
-    var proposito by remember {
-        mutableStateOf("")
-    }
-
-    var duracionHoras by remember {
-        mutableStateOf("")
-    }
-
-    val equipo = viewModel.obtenerEquipo(equipoId)
-
-    /*
-     * Limpiamos el mensaje anterior cada vez que
-     * entramos a una nueva pantalla de solicitud.
-     *
-     * Esto evita que una solicitud anterior provoque
-     * una navegación automática.
-     */
+    // Limpiar mensajes previos al entrar
     LaunchedEffect(Unit) {
         viewModel.limpiarMensaje()
     }
 
-    /*
-     * Cuando se crea correctamente una solicitud,
-     * navegamos solamente en ese momento.
-     */
+    // Mostrar Snackbar ante mensajes de éxito o error
     LaunchedEffect(uiState.mensaje) {
-        if (uiState.mensaje == "Solicitud creada correctamente.") {
-            viewModel.limpiarMensaje()
-            onSolicitudCreada()
+        uiState.mensaje?.let { mensaje ->
+            snackbarHostState.showSnackbar(mensaje)
+            if (mensaje == "Solicitud creada correctamente.") {
+                viewModel.limpiarMensaje()
+                onSolicitudCreada()
+            }
         }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = {
-                    Text("Solicitar préstamo")
-                }
+                title = { Text("Nueva Solicitud") }
             )
         }
     ) { paddingValues ->
@@ -88,115 +89,76 @@ fun SolicitudScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            if (equipo != null) {
+            if (cargandoEquipo) {
 
                 Text(
-                    text = "Equipo: ${equipo.nombre}"
+                    text = "Cargando equipo...",
+                    style = MaterialTheme.typography.bodyLarge
                 )
 
+            } else if (equipo == null) {
+
                 Text(
-                    text = "Categoría: ${equipo.categoria}"
+                    text = "El equipo seleccionado no existe.",
+                    style = MaterialTheme.typography.titleLarge
                 )
 
             } else {
 
+                val eq = equipo!!
+
                 Text(
-                    text = "El equipo no existe."
+                    text = "Equipo: ${eq.nombre}",
+                    style = MaterialTheme.typography.titleMedium
                 )
-            }
 
-            OutlinedTextField(
-                value = ambienteDestino,
-                onValueChange = {
-                    ambienteDestino = it
-                },
-                label = {
-                    Text("Ambiente o destino")
-                },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            OutlinedTextField(
-                value = proposito,
-                onValueChange = {
-                    proposito = it
-                },
-                label = {
-                    Text("Propósito del préstamo")
-                },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3
-            )
-
-            OutlinedTextField(
-                value = duracionHoras,
-                onValueChange = {
-                    duracionHoras = it.filter { character ->
-                        character.isDigit()
-                    }
-                },
-                label = {
-                    Text("Duración en horas")
-                },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number
+                Text(
+                    text = "Categoría: ${eq.categoria}"
                 )
-            )
 
-            Button(
-                onClick = {
+                OutlinedTextField(
+                    value = ambienteDestino,
+                    onValueChange = { ambienteDestino = it },
+                    label = { Text("Ambiente o Destino") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
 
-                    val horas = duracionHoras.toIntOrNull()
+                OutlinedTextField(
+                    value = proposito,
+                    onValueChange = { proposito = it },
+                    label = { Text("Propósito (10-180 caracteres)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
+                )
 
-                    if (horas != null) {
+                OutlinedTextField(
+                    value = duracionHoras,
+                    onValueChange = { duracionHoras = it },
+                    label = { Text("Duración (Horas: 1-8)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
 
+                Button(
+                    onClick = {
+                        val horas = duracionHoras.toIntOrNull() ?: 0
                         viewModel.crearSolicitud(
-                            equipoId = equipoId,
+                            equipoId = eq.id,
                             ambienteDestino = ambienteDestino,
                             proposito = proposito,
                             duracionHoras = horas
                         )
-
-                    } else {
-
-                        viewModel.crearSolicitud(
-                            equipoId = equipoId,
-                            ambienteDestino = ambienteDestino,
-                            proposito = proposito,
-                            duracionHoras = 0
-                        )
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.guardando && equipo != null
-            ) {
-
-                Text(
-                    text = if (uiState.guardando) {
-                        "Guardando..."
-                    } else {
-                        "Crear solicitud"
-                    }
-                )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !uiState.guardando
+                ) {
+                    Text(if (uiState.guardando) "Guardando..." else "Enviar Solicitud")
+                }
             }
 
-            /*
-             * Mostramos los mensajes de validación.
-             *
-             * El mensaje de éxito ya no provoca navegación
-             * directamente desde este bloque.
-             */
-            uiState.mensaje?.let { mensaje ->
-
-                Text(
-                    text = mensaje
-                )
-            }
-
-            Button(
+            OutlinedButton(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth()
             ) {
