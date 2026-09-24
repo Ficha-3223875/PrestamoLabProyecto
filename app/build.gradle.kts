@@ -45,6 +45,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     
     // Room & DataStore
     implementation(libs.androidx.room.runtime)
@@ -53,6 +54,12 @@ dependencies {
     testImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.androidx.room.testing)
     implementation(libs.androidx.datastore.preferences)
+
+    // Retrofit & OkHttp
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging.interceptor)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

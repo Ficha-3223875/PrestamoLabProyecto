@@ -71,4 +71,8 @@ class InMemoryPrestamoRepository : PrestamoRepository {
             Result.failure(Exception("No se puede cancelar"))
         }
     }
+
+    override suspend fun refrescarDatos(): Result<Unit> {
+        return Result.success(Unit)
+    }
 }

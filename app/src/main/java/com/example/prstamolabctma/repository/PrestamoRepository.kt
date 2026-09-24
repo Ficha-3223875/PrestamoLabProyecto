@@ -13,4 +13,5 @@ interface PrestamoRepository {
     suspend fun obtenerSolicitud(id: Int): SolicitudPrestamo?
     suspend fun crearSolicitud(solicitud: SolicitudPrestamo): Result<Unit>
     suspend fun cancelarSolicitud(id: Int): Result<Unit>
+    suspend fun refrescarDatos(): Result<Unit>
 }

@@ -5,11 +5,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.model.SolicitudPrestamo
+import com.example.prstamolabctma.ui.state.OperationState
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -18,8 +19,24 @@ fun SolicitudScreen(navController: NavController, equipoId: Int, viewModel: Pres
     var proposito by remember { mutableStateOf("") }
     var duracion by remember { mutableStateOf("") }
 
+    val operacionState by viewModel.operacionState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(operacionState) {
+        when (val state = operacionState) {
+            is OperationState.Exitosa -> {
+                viewModel.resetearEstadoOperacion()
+                navController.navigate("misSolicitudes") {
+                    popUpTo("catalogo") { inclusive = false }
+                }
+            }
+            is OperationState.Fallida -> {
+                snackbarHostState.showSnackbar(state.mensaje)
+                viewModel.resetearEstadoOperacion()
+            }
+            else -> {}
+        }
+    }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Solicitud de préstamo") }) },
@@ -30,7 +47,8 @@ fun SolicitudScreen(navController: NavController, equipoId: Int, viewModel: Pres
                 value = ambiente,
                 onValueChange = { ambiente = it },
                 label = { Text("Ambiente/Destino") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = operacionState !is OperationState.EnCurso
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -39,7 +57,8 @@ fun SolicitudScreen(navController: NavController, equipoId: Int, viewModel: Pres
                 value = proposito,
                 onValueChange = { proposito = it },
                 label = { Text("Propósito (10-180 caracteres)") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = operacionState !is OperationState.EnCurso
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -48,7 +67,8 @@ fun SolicitudScreen(navController: NavController, equipoId: Int, viewModel: Pres
                 value = duracion,
                 onValueChange = { duracion = it },
                 label = { Text("Duración (1-8 horas)") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = operacionState !is OperationState.EnCurso
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -56,29 +76,23 @@ fun SolicitudScreen(navController: NavController, equipoId: Int, viewModel: Pres
             Button(
                 onClick = {
                     val solicitud = SolicitudPrestamo(
-                        id = 0, // Generado por Room @PrimaryKey(autoGenerate = true)
+                        id = 0,
                         equipoId = equipoId,
                         ambienteDestino = ambiente,
                         proposito = proposito,
                         duracionHoras = duracion.toIntOrNull() ?: 0,
                         estado = EstadoSolicitud.SOLICITADA
                     )
-                    viewModel.crearSolicitud(solicitud) { result ->
-                        if (result.isSuccess) {
-                            navController.navigate("misSolicitudes") {
-                                popUpTo("catalogo") { inclusive = false }
-                            }
-                        } else {
-                            val errorMsg = result.exceptionOrNull()?.message ?: "Error al crear la solicitud"
-                            scope.launch {
-                                snackbarHostState.showSnackbar(errorMsg)
-                            }
-                        }
-                    }
+                    viewModel.crearSolicitud(solicitud)
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = operacionState !is OperationState.EnCurso
             ) {
-                Text("Guardar solicitud")
+                if (operacionState is OperationState.EnCurso) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Text("Guardar solicitud")
+                }
             }
         }
     }

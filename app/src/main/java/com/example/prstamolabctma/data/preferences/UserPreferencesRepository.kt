@@ -12,13 +12,18 @@ import kotlinx.coroutines.flow.map
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_preferences")
 
-class UserPreferencesRepository(private val context: Context) {
+interface PreferencesRepository {
+    val categoriaFiltroFlow: Flow<CategoriaEquipo?>
+    suspend fun guardarCategoriaFiltro(categoria: CategoriaEquipo?)
+}
+
+class UserPreferencesRepository(private val context: Context) : PreferencesRepository {
 
     private object PreferencesKeys {
         val CATEGORIA_FILTRO = stringPreferencesKey("categoria_filtro")
     }
 
-    val categoriaFiltroFlow: Flow<CategoriaEquipo?> = context.dataStore.data.map { preferences ->
+    override val categoriaFiltroFlow: Flow<CategoriaEquipo?> = context.dataStore.data.map { preferences ->
         val categoriaString = preferences[PreferencesKeys.CATEGORIA_FILTRO]
         if (!categoriaString.isNullOrEmpty()) {
             runCatching { CategoriaEquipo.valueOf(categoriaString) }.getOrNull()
@@ -27,7 +32,7 @@ class UserPreferencesRepository(private val context: Context) {
         }
     }
 
-    suspend fun guardarCategoriaFiltro(categoria: CategoriaEquipo?) {
+    override suspend fun guardarCategoriaFiltro(categoria: CategoriaEquipo?) {
         context.dataStore.edit { preferences ->
             if (categoria != null) {
                 preferences[PreferencesKeys.CATEGORIA_FILTRO] = categoria.name
