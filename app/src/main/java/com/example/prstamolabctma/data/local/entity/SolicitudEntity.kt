@@ -11,5 +11,7 @@ data class SolicitudEntity(
     val ambienteDestino: String,
     val proposito: String,
     val duracionHoras: Int,
-    val estado: EstadoSolicitud
+    val estado: EstadoSolicitud,
+    val evidenciaUri: String? = null,         // 👈 Añadido para la Guía 9 (URI de la evidencia fotográfica)
+    val dispositivoBluetooth: String? = null   // 👈 Añadido para la Guía 9 (Capacidad física adicional Bluetooth)
 )

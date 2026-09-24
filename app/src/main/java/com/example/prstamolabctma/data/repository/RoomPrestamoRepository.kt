@@ -74,7 +74,9 @@ class RoomPrestamoRepository(
             ambienteDestino = solicitud.ambienteDestino,
             proposito = solicitud.proposito,
             duracionHoras = solicitud.duracionHoras,
-            estado = EstadoSolicitud.SOLICITADA
+            estado = EstadoSolicitud.SOLICITADA,
+            evidenciaUri = solicitud.evidenciaUri,                 // 👈 Guardando evidencia fotográfica (Guía 9)
+            dispositivoBluetooth = solicitud.dispositivoBluetooth // 👈 Guardando Bluetooth detectado (Guía 9)
         )
 
         solicitudDao.insertarSolicitud(nuevaSolicitudEntity)
@@ -96,5 +98,16 @@ class RoomPrestamoRepository(
     }
 
     private fun EquipoEntity.toDomain() = Equipo(id, nombre, categoria, estado)
-    private fun SolicitudEntity.toDomain() = SolicitudPrestamo(id, equipoId, ambienteDestino, proposito, duracionHoras, estado)
+
+    // 👇 Mapeadores actualizados para soportar los campos de la Guía 9
+    private fun SolicitudEntity.toDomain() = SolicitudPrestamo(
+        id = id,
+        equipoId = equipoId,
+        ambienteDestino = ambienteDestino,
+        proposito = proposito,
+        duracionHoras = duracionHoras,
+        estado = estado,
+        evidenciaUri = evidenciaUri,
+        dispositivoBluetooth = dispositivoBluetooth
+    )
 }

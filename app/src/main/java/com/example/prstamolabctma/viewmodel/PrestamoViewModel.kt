@@ -32,7 +32,14 @@ class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel(
         }
     }
 
-    fun crearSolicitud(equipoId: Int, destino: String, proposito: String, horasTexto: String) {
+    fun crearSolicitud(
+        equipoId: Int,
+        destino: String,
+        proposito: String,
+        horasTexto: String,
+        evidenciaUri: String? = null,         // 👈 Parámetro añadido para la Guía 9 (Evidencia fotográfica)
+        dispositivoBluetooth: String? = null   // 👈 Parámetro añadido para la Guía 9 (Bluetooth detectado)
+    ) {
 
         // 0. Evitar reentradas mientras procesa
         if (_uiState.value.guardando) {
@@ -89,7 +96,9 @@ class PrestamoViewModel(private val repository: PrestamoRepository) : ViewModel(
                 ambienteDestino = destino,
                 proposito = propositoLimpio,
                 duracionHoras = horas,
-                estado = EstadoSolicitud.SOLICITADA
+                estado = EstadoSolicitud.SOLICITADA,
+                evidenciaUri = evidenciaUri,                 // 👈 Asignación de la Guía 9
+                dispositivoBluetooth = dispositivoBluetooth   // 👈 Asignación de la Guía 9
             )
 
             val guardadoExitoso = repository.crearSolicitud(nuevaSolicitud)

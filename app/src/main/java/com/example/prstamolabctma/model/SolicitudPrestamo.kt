@@ -6,10 +6,7 @@ data class SolicitudPrestamo(
     val ambienteDestino: String,
     val proposito: String,
     val duracionHoras: Int,
-    val estado: EstadoSolicitud
+    val estado: EstadoSolicitud,
+    val evidenciaUri: String? = null,         // 👈 Añadido para la Guía 9 (Evidencia fotográfica por URI)
+    val dispositivoBluetooth: String? = null   // 👈 Añadido para la Guía 9 (Capacidad física Bluetooth)
 )
-
-
-
-
-

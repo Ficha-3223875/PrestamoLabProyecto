@@ -1,16 +1,26 @@
 package com.example.prstamolabctma.ui.solicitud
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.navigation.NavHostController
+import com.example.prstamolabctma.data.device.BluetoothHelper
 import com.example.prstamolabctma.navigation.Destino
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -19,9 +29,43 @@ fun SolicitudScreen(
     equipoId: Int,
     navController: NavHostController
 ) {
+    val context = LocalContext.current
     var destino by remember { mutableStateOf("") }
     var proposito by remember { mutableStateOf("") }
     var duracion by remember { mutableStateOf("") }
+
+    // Estados para la Guía 9 (Evidencia fotográfica y Bluetooth)
+    var evidenciaUriString by remember { mutableStateOf<String?>(null) }
+    var dispositivoSeleccionado by remember { mutableStateOf<String?>(null) }
+    var dispositivosBluetooth by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    // Helper de Bluetooth
+    val bluetoothHelper = remember { BluetoothHelper(context) }
+
+    // Configuración para tomar foto con la cámara (FileProvider)
+    val fotoFile = remember {
+        File(context.cacheDir, "evidencia_${System.currentTimeMillis()}.jpg")
+    }
+    val fotoUri: Uri = remember {
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", fotoFile)
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            evidenciaUriString = fotoUri.toString()
+        }
+    }
+
+    // 👇 Lanzador para solicitar el permiso de la cámara en tiempo de ejecución
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            cameraLauncher.launch(fotoUri)
+        }
+    }
 
     // Estados para mensajes de error locales en UI
     var errorDestino by remember { mutableStateOf<String?>(null) }
@@ -33,7 +77,6 @@ fun SolicitudScreen(
     fun validarFormulario(): Boolean {
         var esValido = true
 
-        // Validar Destino
         if (destino.isBlank()) {
             errorDestino = "El destino es obligatorio."
             esValido = false
@@ -41,7 +84,6 @@ fun SolicitudScreen(
             errorDestino = null
         }
 
-        // Validar Propósito (10 a 180 caracteres)
         val largoProposito = proposito.trim().length
         if (largoProposito < 10) {
             errorProposito = "El propósito debe tener al menos 10 caracteres."
@@ -53,7 +95,6 @@ fun SolicitudScreen(
             errorProposito = null
         }
 
-        // Validar Duración (1 a 8 horas)
         val horas = duracion.toIntOrNull()
         if (horas == null || horas !in 1..8) {
             errorDuracion = "La duración debe estar entre 1 y 8 horas."
@@ -81,7 +122,7 @@ fun SolicitudScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -92,8 +133,8 @@ fun SolicitudScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     // Campo Destino
                     OutlinedTextField(
@@ -104,11 +145,6 @@ fun SolicitudScreen(
                         },
                         label = { Text("Ambiente / Destino *") },
                         isError = errorDestino != null,
-                        supportingText = {
-                            errorDestino?.let {
-                                Text(it, color = MaterialTheme.colorScheme.error)
-                            }
-                        },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -122,15 +158,8 @@ fun SolicitudScreen(
                         },
                         label = { Text("Propósito *") },
                         isError = errorProposito != null,
-                        supportingText = {
-                            if (errorProposito != null) {
-                                Text(errorProposito!!, color = MaterialTheme.colorScheme.error)
-                            } else {
-                                Text("${proposito.length}/180 caracteres")
-                            }
-                        },
-                        minLines = 3,
-                        maxLines = 5,
+                        minLines = 2,
+                        maxLines = 4,
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -144,14 +173,53 @@ fun SolicitudScreen(
                         label = { Text("Duración en horas (1 - 8) *") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         isError = errorDuracion != null,
-                        supportingText = {
-                            errorDuracion?.let {
-                                Text(it, color = MaterialTheme.colorScheme.error)
-                            }
-                        },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    Divider()
+
+                    // 👇 SECCIÓN GUÍA 9: Evidencia Fotográfica con validación de permisos
+                    Text("Evidencia Fotográfica (Guía 9)", style = MaterialTheme.typography.titleSmall)
+                    Button(
+                        onClick = {
+                            val permissionCheck = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.CAMERA
+                            )
+                            if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+                                cameraLauncher.launch(fotoUri)
+                            } else {
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (evidenciaUriString == null) "Tomar Foto de Evidencia" else "Foto Capturada ✓")
+                    }
+
+                    // 👇 SECCIÓN GUÍA 9: Capacidad Física Bluetooth
+                    Text("Capacidad Física - Bluetooth (Guía 9)", style = MaterialTheme.typography.titleSmall)
+                    Button(
+                        onClick = {
+                            if (bluetoothHelper.esBluetoothDisponible()) {
+                                dispositivosBluetooth = bluetoothHelper.obtenerDispositivosEmparejados()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Escanear Dispositivos Bluetooth")
+                    }
+
+                    if (dispositivosBluetooth.isNotEmpty()) {
+                        Text("Seleccionado: ${dispositivoSeleccionado ?: "Ninguno"}", style = MaterialTheme.typography.bodySmall)
+                        // Lista simple de dispositivos encontrados
+                        dispositivosBluetooth.forEach { dispositivo ->
+                            TextButton(onClick = { dispositivoSeleccionado = dispositivo }) {
+                                Text("• $dispositivo")
+                            }
+                        }
+                    }
                 }
             }
 
@@ -165,7 +233,9 @@ fun SolicitudScreen(
                             equipoId = equipoId,
                             destino = destino,
                             proposito = proposito,
-                            horasTexto = duracion
+                            horasTexto = duracion,
+                            evidenciaUri = evidenciaUriString,             // 👈 Enviando evidencia
+                            dispositivoBluetooth = dispositivoSeleccionado // 👈 Enviando Bluetooth
                         )
                         navController.navigate(route = Destino.MisSolicitudes.ruta)
                     }

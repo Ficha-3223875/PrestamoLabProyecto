@@ -367,4 +367,32 @@ class PrestamoViewModelTest {
         val solicitudesFlow = repository.obtenerSolicitudes()
         Assert.assertNotNull("El Flow de solicitudes no debe ser nulo", solicitudesFlow)
     }
+
+    // =========================================================================
+    // 7. PRUEBAS PARA LA GUÍA 9 (EVIDENCIA FOTOGRÁFICA Y BLUETOOTH)
+    // =========================================================================
+
+    @Test
+    fun test_31_verificar_que_se_guarde_la_solicitud_con_evidencia_fotografica_y_bluetooth() = testScope.runTest {
+        val fakeUri = "content://com.example.prstamolabctma.fileprovider/cache/evidencia_12345.jpg"
+        val fakeBluetooth = "Dispositivo_Lab_BT"
+
+        viewModel.crearSolicitud(
+            equipoId = 1,
+            destino = "Laboratorio de Redes",
+            proposito = "Prueba práctica configurando equipos de red con evidencia.",
+            horasTexto = "3",
+            evidenciaUri = fakeUri,
+            dispositivoBluetooth = fakeBluetooth
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        Assert.assertEquals("Solicitud registrada con éxito.", state.mensaje)
+        Assert.assertEquals(1, state.solicitudes.size)
+
+        val solicitudRegistrada = state.solicitudes.first()
+        Assert.assertEquals(fakeUri, solicitudRegistrada.evidenciaUri)
+        Assert.assertEquals(fakeBluetooth, solicitudRegistrada.dispositivoBluetooth)
+    }
 }
