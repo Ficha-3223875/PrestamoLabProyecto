@@ -17,10 +17,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.prstamolabctma.model.SolicitudPrestamo
+import com.example.prstamolabctma.ui.common.EmptyState
+import com.example.prstamolabctma.ui.common.ErrorState
+import com.example.prstamolabctma.ui.common.LoadingState
+import com.example.prstamolabctma.ui.common.UiState
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,14 +35,12 @@ fun MisPrestamosScreen(
     onSolicitudClick: (Int) -> Unit,
     onBack: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val solicitudesUiState by viewModel.solicitudesState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text("Mis préstamos")
-                }
+                title = { Text("Mis préstamos") }
             )
         }
     ) { paddingValues ->
@@ -49,56 +52,51 @@ fun MisPrestamosScreen(
                 .padding(16.dp)
         ) {
 
-            if (uiState.solicitudes.isEmpty()) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                when (val state = solicitudesUiState) {
+                    is UiState.Loading -> {
+                        LoadingState(mensaje = "Cargando tus solicitudes...")
+                    }
 
-                Text(
-                    text = "No tienes solicitudes de préstamo.",
-                    style = MaterialTheme.typography.titleMedium
-                )
+                    is UiState.Empty -> {
+                        EmptyState(mensaje = "No tienes solicitudes de préstamo registradas.")
+                    }
 
-            } else {
+                    is UiState.Error -> {
+                        ErrorState(
+                            mensaje = state.message,
+                            onRetry = null
+                        )
+                    }
 
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-
-                    items(uiState.solicitudes) { solicitud ->
-
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onSolicitudClick(solicitud.id)
-                                }
+                    is UiState.Content<List<SolicitudPrestamo>> -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-
-                                Text(
-                                    text = "Solicitud #${solicitud.id}",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-
-                                Text(
-                                    text = "Equipo: ${solicitud.equipoId}"
-                                )
-
-                                Text(
-                                    text = "Destino: ${solicitud.ambienteDestino}"
-                                )
-
-                                Text(
-                                    text = "Duración: ${solicitud.duracionHoras} horas"
-                                )
-
-                                Text(
-                                    text = "Estado: ${solicitud.estado}"
-                                )
+                            items(state.data) { solicitud ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onSolicitudClick(solicitud.id) }
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "Solicitud #${solicitud.id}",
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                        Text(text = "Equipo ID: ${solicitud.equipoId}")
+                                        Text(text = "Destino: ${solicitud.ambienteDestino}")
+                                        Text(text = "Duración: ${solicitud.duracionHoras} hora(s)")
+                                        Text(text = "Estado: ${solicitud.estado}")
+                                    }
+                                }
                             }
                         }
                     }

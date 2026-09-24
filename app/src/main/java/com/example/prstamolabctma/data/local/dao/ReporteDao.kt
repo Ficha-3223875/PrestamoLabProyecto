@@ -17,7 +17,7 @@ interface ReporteDao {
     fun obtenerTodosLosReportes(): Flow<List<ReporteEntity>>
 
     @Query("SELECT * FROM reportes WHERE id = :id LIMIT 1")
-    suspend fun obtenerReportePorId(id: Int): ReporteEntity?
+    fun obtenerReportePorId(id: Int): Flow<ReporteEntity?>
 
     @Query("DELETE FROM reportes WHERE id = :id")
     suspend fun eliminarReportePorId(id: Int)

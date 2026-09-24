@@ -14,10 +14,13 @@ interface EquipoDao {
     fun getAllEquipos(): Flow<List<EquipoEntity>>
 
     @Query("SELECT * FROM equipos WHERE id = :id")
-    suspend fun getEquipoById(id: Int): EquipoEntity?
+    fun getEquipoById(id: Int): Flow<EquipoEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEquipos(equipos: List<EquipoEntity>)
+
+    @Query("SELECT COUNT(*) FROM equipos")
+    suspend fun getEquipoCount(): Int
 
     @Query("UPDATE equipos SET estado = :nuevoEstado WHERE id = :equipoId")
     suspend fun updateEstadoEquipo(equipoId: Int, nuevoEstado: String)

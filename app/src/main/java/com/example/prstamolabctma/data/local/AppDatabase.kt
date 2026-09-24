@@ -37,16 +37,9 @@ abstract class AppDatabase : RoomDatabase() {
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
-                        val scope = CoroutineScope(Dispatchers.IO)
-                        scope.launch {
+                        CoroutineScope(Dispatchers.IO).launch {
                             try {
-                                val iniciales = listOf(
-                                    EquipoEntity(id = 1, nombre = "Multímetro Digital", categoria = "ELECTRONICA", estado = "DISPONIBLE"),
-                                    EquipoEntity(id = 2, nombre = "Cámara Digital", categoria = "AUDIOVISUAL", estado = "DISPONIBLE"),
-                                    EquipoEntity(id = 3, nombre = "Taladro Eléctrico", categoria = "HERRAMIENTA", estado = "PRESTADO"),
-                                    EquipoEntity(id = 4, nombre = "Tableta", categoria = "COMPUTO", estado = "DISPONIBLE")
-                                )
-                                INSTANCE?.equipoDao()?.insertEquipos(iniciales)
+                                populateInitialEquipos(INSTANCE)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             }
@@ -55,7 +48,31 @@ abstract class AppDatabase : RoomDatabase() {
                 })
                 .build()
                 INSTANCE = instance
+
+                // Garantizar siembra de datos si la base de datos está vacía
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        populateInitialEquipos(instance)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
                 instance
+            }
+        }
+
+        private suspend fun populateInitialEquipos(database: AppDatabase?) {
+            if (database == null) return
+            val count = database.equipoDao().getEquipoCount()
+            if (count == 0) {
+                val iniciales = listOf(
+                    EquipoEntity(id = 1, nombre = "Multímetro Digital", categoria = "ELECTRONICA", estado = "DISPONIBLE"),
+                    EquipoEntity(id = 2, nombre = "Cámara Digital", categoria = "AUDIOVISUAL", estado = "DISPONIBLE"),
+                    EquipoEntity(id = 3, nombre = "Taladro Eléctrico", categoria = "HERRAMIENTA", estado = "PRESTADO"),
+                    EquipoEntity(id = 4, nombre = "Tableta", categoria = "COMPUTO", estado = "DISPONIBLE")
+                )
+                database.equipoDao().insertEquipos(iniciales)
             }
         }
     }

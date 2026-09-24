@@ -3,6 +3,9 @@ package com.example.prstamolabctma
 import com.example.prstamolabctma.model.EstadoEquipo
 import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.model.SolicitudPrestamo
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -18,81 +21,78 @@ class InMemoryPrestamoRepositoryTest {
     }
 
     @Test
-    fun `verificar que se muestren los equipos disponibles`() {
-        val equipos = repository.obtenerEquipos()
+    fun `verificar que se muestren los equipos disponibles`() = runTest {
+        val equipos = repository.obtenerEquipos().first()
         val disponibles = equipos.filter { it.estado == EstadoEquipo.DISPONIBLE }
-        
+
         assertTrue("Debe haber equipos disponibles", disponibles.isNotEmpty())
-        // En el repo inicial hay 3 disponibles (1, 2, 4)
         assertEquals(3, disponibles.size)
     }
 
     @Test
-    fun `verificar que la informacion de cada equipo sea correcta`() {
-        val equipo = repository.obtenerEquipo(1)
-        
+    fun `verificar que la informacion de cada equipo sea correcta`() = runTest {
+        val equipo = repository.obtenerEquipo(1).first()
+
         assertTrue(equipo != null)
         assertEquals("Multímetro Digital", equipo?.nombre)
         assertEquals(com.example.prstamolabctma.model.CategoriaEquipo.ELECTRONICA, equipo?.categoria)
     }
 
     @Test
-    fun `verificar que los equipos no disponibles no aparezcan como disponibles`() {
-        val equipos = repository.obtenerEquipos()
-        val equipoPrestado = equipos.find { it.id == 3 } // Taladro Eléctrico está PRESTADO en el repo inicial
-        
+    fun `verificar que los equipos no disponibles no aparezcan como disponibles`() = runTest {
+        val equipos = repository.obtenerEquipos().first()
+        val equipoPrestado = equipos.find { it.id == 3 }
+
         assertTrue(equipoPrestado?.estado != EstadoEquipo.DISPONIBLE)
     }
 
     @Test
-    fun `verificar que cada equipo aparezca de manera individual`() {
-        val equipos = repository.obtenerEquipos()
+    fun `verificar que cada equipo aparezca de manera individual`() = runTest {
+        val equipos = repository.obtenerEquipos().first()
         val ids = equipos.map { it.id }
-        
-        // Verificamos que no haya IDs duplicados en la lista de equipos
+
         assertEquals(ids.size, ids.distinct().size)
     }
 
     @Test
-    fun `verificar el comportamiento cuando no hay equipos registrados`() {
-        // Como el repo actual tiene datos hardcoded, usamos una implementación vacía para el test
+    fun `verificar el comportamiento cuando no hay equipos registrados`() = runTest {
         val emptyRepo = object : com.example.prstamolabctma.data.repository.PrestamoRepository {
-            override fun obtenerEquipos() = emptyList<com.example.prstamolabctma.model.Equipo>()
-            override fun obtenerEquipo(id: Int) = null
-            override fun obtenerSolicitudes() = emptyList<SolicitudPrestamo>()
-            override fun obtenerSolicitud(id: Int) = null
-            override fun crearSolicitud(solicitud: SolicitudPrestamo) = Result.success(Unit)
-            override fun cancelarSolicitud(id: Int) = Result.success(Unit)
+            override fun obtenerEquipos() = flowOf(emptyList<com.example.prstamolabctma.model.Equipo>())
+            override fun obtenerEquipo(id: Int) = flowOf(null)
+            override fun obtenerSolicitudes() = flowOf(emptyList<SolicitudPrestamo>())
+            override fun obtenerSolicitud(id: Int) = flowOf(null)
+            override suspend fun crearSolicitud(solicitud: SolicitudPrestamo) = Result.success(Unit)
+            override suspend fun cancelarSolicitud(id: Int) = Result.success(Unit)
         }
-        
-        assertTrue(emptyRepo.obtenerEquipos().isEmpty())
+
+        assertTrue(emptyRepo.obtenerEquipos().first().isEmpty())
     }
 
     @Test
-    fun `verificar que se pueda registrar una solicitud valida`() {
+    fun `verificar que se pueda registrar una solicitud valida`() = runTest {
         val solicitud = SolicitudPrestamo(
             id = 0,
-            equipoId = 1, // Multímetro está disponible
+            equipoId = 1,
             ambienteDestino = "Laboratorio 1",
             proposito = "Práctica de electrónica básica",
             duracionHoras = 2,
             estado = EstadoSolicitud.SOLICITADA
         )
-        
+
         val resultado = repository.crearSolicitud(solicitud)
-        
+
         assertTrue("La solicitud debería crearse con éxito", resultado.isSuccess)
-        
-        val solicitudes = repository.obtenerSolicitudes()
+
+        val solicitudes = repository.obtenerSolicitudes().first()
         assertEquals(1, solicitudes.size)
         assertEquals(EstadoSolicitud.SOLICITADA, solicitudes[0].estado)
-        
-        val equipoActualizado = repository.obtenerEquipo(1)
+
+        val equipoActualizado = repository.obtenerEquipo(1).first()
         assertEquals(EstadoEquipo.RESERVADO, equipoActualizado?.estado)
     }
 
     @Test
-    fun `verificar que no se creen solicitudes duplicadas para el mismo equipo`() {
+    fun `verificar que no se creen solicitudes duplicadas para el mismo equipo`() = runTest {
         val solicitud = SolicitudPrestamo(
             id = 0,
             equipoId = 2,
@@ -101,16 +101,16 @@ class InMemoryPrestamoRepositoryTest {
             duracionHoras = 3,
             estado = EstadoSolicitud.SOLICITADA
         )
-        
+
         repository.crearSolicitud(solicitud)
         val resultadoDuplicado = repository.crearSolicitud(solicitud)
-        
+
         assertTrue("La segunda solicitud debería fallar", resultadoDuplicado.isFailure)
-        assertEquals(1, repository.obtenerSolicitudes().size)
+        assertEquals(1, repository.obtenerSolicitudes().first().size)
     }
 
     @Test
-    fun `verificar que se pueda cancelar una solicitud SOLICITADA`() {
+    fun `verificar que se pueda cancelar una solicitud SOLICITADA`() = runTest {
         val solicitud = SolicitudPrestamo(
             id = 0,
             equipoId = 4,
@@ -119,18 +119,18 @@ class InMemoryPrestamoRepositoryTest {
             duracionHoras = 1,
             estado = EstadoSolicitud.SOLICITADA
         )
-        
+
         repository.crearSolicitud(solicitud)
-        val idSolicitud = repository.obtenerSolicitudes()[0].id
-        
+        val idSolicitud = repository.obtenerSolicitudes().first()[0].id
+
         val resultadoCancelacion = repository.cancelarSolicitud(idSolicitud)
-        
+
         assertTrue("La cancelación debería ser exitosa", resultadoCancelacion.isSuccess)
-        
-        val solicitudCancelada = repository.obtenerSolicitud(idSolicitud)
+
+        val solicitudCancelada = repository.obtenerSolicitud(idSolicitud).first()
         assertEquals(EstadoSolicitud.CANCELADA, solicitudCancelada?.estado)
-        
-        val equipoLiberado = repository.obtenerEquipo(4)
+
+        val equipoLiberado = repository.obtenerEquipo(4).first()
         assertEquals(EstadoEquipo.DISPONIBLE, equipoLiberado?.estado)
     }
 }

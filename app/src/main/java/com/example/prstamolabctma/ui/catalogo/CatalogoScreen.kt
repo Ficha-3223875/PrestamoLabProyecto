@@ -2,26 +2,34 @@ package com.example.prstamolabctma.ui.catalogo
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.Button
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.prstamolabctma.model.Equipo
 import com.example.prstamolabctma.model.EstadoEquipo
+import com.example.prstamolabctma.ui.common.EmptyState
+import com.example.prstamolabctma.ui.common.ErrorState
+import com.example.prstamolabctma.ui.common.LoadingState
+import com.example.prstamolabctma.ui.common.UiState
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,14 +39,12 @@ fun CatalogoScreen(
     onEquipoClick: (Int) -> Unit,
     onMisPrestamosClick: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val equiposUiState by viewModel.equiposState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text("Catálogo de equipos")
-                }
+                title = { Text("Catálogo de equipos") }
             )
         }
     ) { paddingValues ->
@@ -57,43 +63,65 @@ fun CatalogoScreen(
                 Text("Mis préstamos")
             }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
             ) {
+                when (val state = equiposUiState) {
+                    is UiState.Loading -> {
+                        LoadingState(mensaje = "Cargando catálogo de equipos...")
+                    }
 
-                items(uiState.equipos) { equipo ->
+                    is UiState.Empty -> {
+                        EmptyState(mensaje = "No hay equipos registrados en el laboratorio.")
+                    }
 
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onEquipoClick(equipo.id)
-                            }
-                    ) {
+                    is UiState.Error -> {
+                        ErrorState(
+                            mensaje = state.message,
+                            onRetry = null
+                        )
+                    }
 
-                        Column(
-                            modifier = Modifier.padding(16.dp)
+                    is UiState.Content<List<Equipo>> -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
+                            items(state.data) { equipo ->
+                                val esDisponible = equipo.estado == EstadoEquipo.DISPONIBLE
 
-                            Text(
-                                text = equipo.nombre,
-                                style = MaterialTheme.typography.titleMedium
-                            )
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(enabled = esDisponible) { onEquipoClick(equipo.id) }
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp)
+                                    ) {
+                                        Text(
+                                            text = equipo.nombre,
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                        Text(text = "Categoría: ${equipo.categoria}")
 
-                            Text(
-                                text = "Categoría: ${equipo.categoria}"
-                            )
-
-                            Text(
-                                text = "Estado: ${equipo.estado}"
-                            )
-
-                            if (equipo.estado == EstadoEquipo.DISPONIBLE) {
-                                Text(
-                                    text = "Disponible"
-                                )
+                                        if (esDisponible) {
+                                            Text(
+                                                text = "Estado: Disponible",
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        } else {
+                                            Text(
+                                                text = "Estado: ${equipo.estado} (No disponible)",
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

@@ -8,11 +8,11 @@ interface PrestamoRepository {
 
     fun obtenerEquipos(): Flow<List<Equipo>>
 
-    suspend fun obtenerEquipo(id: Int): Equipo?
+    fun obtenerEquipo(id: Int): Flow<Equipo?>
 
     fun obtenerSolicitudes(): Flow<List<SolicitudPrestamo>>
 
-    suspend fun obtenerSolicitud(id: Int): SolicitudPrestamo?
+    fun obtenerSolicitud(id: Int): Flow<SolicitudPrestamo?>
 
     suspend fun crearSolicitud(solicitud: SolicitudPrestamo): Result<Unit>
 

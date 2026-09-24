@@ -18,7 +18,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,7 +25,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.prstamolabctma.model.Equipo
+import com.example.prstamolabctma.ui.common.EmptyState
+import com.example.prstamolabctma.ui.common.ErrorState
+import com.example.prstamolabctma.ui.common.LoadingState
+import com.example.prstamolabctma.ui.common.UiState
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,24 +41,18 @@ fun SolicitudScreen(
     onSolicitudCreada: () -> Unit,
     onBack: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val equipoFlow = remember(equipoId) { viewModel.obtenerEquipoState(equipoId) }
+    val equipoUiState by equipoFlow.collectAsStateWithLifecycle()
 
-    var equipo by remember { mutableStateOf<Equipo?>(null) }
-    var cargandoEquipo by remember { mutableStateOf(true) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var ambienteDestino by remember { mutableStateOf("") }
     var proposito by remember { mutableStateOf("") }
     var duracionHoras by remember { mutableStateOf("") }
 
-    // Cargar información del equipo desde Room
-    LaunchedEffect(equipoId) {
-        cargandoEquipo = true
-        viewModel.obtenerEquipo(equipoId) { resultado ->
-            equipo = resultado
-            cargandoEquipo = false
-        }
-    }
+    // Control de bloqueo inmediato para prevenir doble clic
+    var enviandoLocal by remember { mutableStateOf(false) }
 
     // Limpiar mensajes previos al entrar
     LaunchedEffect(Unit) {
@@ -68,6 +66,9 @@ fun SolicitudScreen(
             if (mensaje == "Solicitud creada correctamente.") {
                 viewModel.limpiarMensaje()
                 onSolicitudCreada()
+            } else {
+                // Si fue un mensaje de validación o error, permite reintentar
+                enviandoLocal = false
             }
         }
     }
@@ -89,72 +90,77 @@ fun SolicitudScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            if (cargandoEquipo) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                when (val state = equipoUiState) {
+                    is UiState.Loading -> {
+                        LoadingState(mensaje = "Cargando equipo...")
+                    }
 
-                Text(
-                    text = "Cargando equipo...",
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                    is UiState.Empty -> {
+                        EmptyState(mensaje = "El equipo seleccionado no existe.")
+                    }
 
-            } else if (equipo == null) {
+                    is UiState.Error -> {
+                        ErrorState(mensaje = state.message)
+                    }
 
-                Text(
-                    text = "El equipo seleccionado no existe.",
-                    style = MaterialTheme.typography.titleLarge
-                )
+                    is UiState.Content<Equipo> -> {
+                        val eq = state.data
 
-            } else {
-
-                val eq = equipo!!
-
-                Text(
-                    text = "Equipo: ${eq.nombre}",
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Text(
-                    text = "Categoría: ${eq.categoria}"
-                )
-
-                OutlinedTextField(
-                    value = ambienteDestino,
-                    onValueChange = { ambienteDestino = it },
-                    label = { Text("Ambiente o Destino") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = proposito,
-                    onValueChange = { proposito = it },
-                    label = { Text("Propósito (10-180 caracteres)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
-                )
-
-                OutlinedTextField(
-                    value = duracionHoras,
-                    onValueChange = { duracionHoras = it },
-                    label = { Text("Duración (Horas: 1-8)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-
-                Button(
-                    onClick = {
-                        val horas = duracionHoras.toIntOrNull() ?: 0
-                        viewModel.crearSolicitud(
-                            equipoId = eq.id,
-                            ambienteDestino = ambienteDestino,
-                            proposito = proposito,
-                            duracionHoras = horas
+                        Text(
+                            text = "Equipo: ${eq.nombre}",
+                            style = MaterialTheme.typography.titleMedium
                         )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !uiState.guardando
-                ) {
-                    Text(if (uiState.guardando) "Guardando..." else "Enviar Solicitud")
+
+                        Text(text = "Categoría: ${eq.categoria}")
+
+                        OutlinedTextField(
+                            value = ambienteDestino,
+                            onValueChange = { ambienteDestino = it },
+                            label = { Text("Ambiente o Destino") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        OutlinedTextField(
+                            value = proposito,
+                            onValueChange = { proposito = it },
+                            label = { Text("Propósito (10-180 caracteres)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 3
+                        )
+
+                        OutlinedTextField(
+                            value = duracionHoras,
+                            onValueChange = { duracionHoras = it },
+                            label = { Text("Duración (Horas: 1-8)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true
+                        )
+
+                        Button(
+                            onClick = {
+                                if (!enviandoLocal && !uiState.guardando) {
+                                    enviandoLocal = true
+                                    val horas = duracionHoras.toIntOrNull() ?: 0
+                                    viewModel.crearSolicitud(
+                                        equipoId = eq.id,
+                                        ambienteDestino = ambienteDestino,
+                                        proposito = proposito,
+                                        duracionHoras = horas
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !uiState.guardando && !enviandoLocal
+                        ) {
+                            Text(if (uiState.guardando || enviandoLocal) "Guardando..." else "Enviar Solicitud")
+                        }
+                    }
                 }
             }
 

@@ -5,10 +5,18 @@ import androidx.lifecycle.viewModelScope
 import com.example.prstamolabctma.data.repository.PrestamoRepository
 import com.example.prstamolabctma.model.Equipo
 import com.example.prstamolabctma.model.SolicitudPrestamo
+import com.example.prstamolabctma.ui.common.UiState
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -20,13 +28,50 @@ data class PrestamoUiState(
 )
 
 class PrestamoViewModel(
-    private val repository: PrestamoRepository
+    private val repository: PrestamoRepository,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     private val _mensajeState = MutableStateFlow<String?>(null)
     private val _guardandoState = MutableStateFlow(false)
 
-    // Combinamos los Flujos de Room con los estados de UI (mensajes y carga)
+    // Manejador global de excepciones para corrutinas en ViewModel
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        _mensajeState.value = throwable.message ?: "Ocurrió un error inesperado."
+        _guardandoState.value = false
+    }
+
+    // StateFlow reactivo de Equipos mapeado a UiState (Loading, Content, Empty, Error)
+    val equiposState: StateFlow<UiState<List<Equipo>>> = repository.obtenerEquipos()
+        .map<List<Equipo>, UiState<List<Equipo>>> { equipos ->
+            if (equipos.isEmpty()) UiState.Empty else UiState.Content(equipos)
+        }
+        .catch { e ->
+            emit(UiState.Error(e.message ?: "Error al obtener la lista de equipos.", e))
+        }
+        .flowOn(ioDispatcher)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = UiState.Loading
+        )
+
+    // StateFlow reactivo de Solicitudes mapeado a UiState (Loading, Content, Empty, Error)
+    val solicitudesState: StateFlow<UiState<List<SolicitudPrestamo>>> = repository.obtenerSolicitudes()
+        .map<List<SolicitudPrestamo>, UiState<List<SolicitudPrestamo>>> { solicitudes ->
+            if (solicitudes.isEmpty()) UiState.Empty else UiState.Content(solicitudes)
+        }
+        .catch { e ->
+            emit(UiState.Error(e.message ?: "Error al obtener las solicitudes.", e))
+        }
+        .flowOn(ioDispatcher)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = UiState.Loading
+        )
+
+    // Estado combinado para flujos generales y compatibilidad
     val uiState: StateFlow<PrestamoUiState> = combine(
         repository.obtenerEquipos(),
         repository.obtenerSolicitudes(),
@@ -39,22 +84,59 @@ class PrestamoViewModel(
             mensaje = mensaje,
             guardando = guardando
         )
-    }.stateIn(
+    }
+    .catch { e ->
+        _mensajeState.value = e.message
+    }
+    .flowOn(ioDispatcher)
+    .stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
+        started = SharingStarted.Eagerly,
         initialValue = PrestamoUiState()
     )
 
+    fun obtenerEquipoState(id: Int): StateFlow<UiState<Equipo>> {
+        return repository.obtenerEquipo(id)
+            .map<Equipo?, UiState<Equipo>> { equipo ->
+                if (equipo == null) UiState.Empty else UiState.Content(equipo)
+            }
+            .catch { e ->
+                emit(UiState.Error(e.message ?: "Error al obtener el equipo.", e))
+            }
+            .flowOn(ioDispatcher)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Eagerly,
+                initialValue = UiState.Loading
+            )
+    }
+
+    fun obtenerSolicitudState(id: Int): StateFlow<UiState<SolicitudPrestamo>> {
+        return repository.obtenerSolicitud(id)
+            .map<SolicitudPrestamo?, UiState<SolicitudPrestamo>> { solicitud ->
+                if (solicitud == null) UiState.Empty else UiState.Content(solicitud)
+            }
+            .catch { e ->
+                emit(UiState.Error(e.message ?: "Error al obtener la solicitud.", e))
+            }
+            .flowOn(ioDispatcher)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Eagerly,
+                initialValue = UiState.Loading
+            )
+    }
+
     fun obtenerEquipo(id: Int, onResult: (Equipo?) -> Unit) {
-        viewModelScope.launch {
-            val equipo = repository.obtenerEquipo(id)
+        viewModelScope.launch(ioDispatcher + exceptionHandler) {
+            val equipo = repository.obtenerEquipo(id).firstOrNull()
             onResult(equipo)
         }
     }
 
     fun obtenerSolicitud(id: Int, onResult: (SolicitudPrestamo?) -> Unit) {
-        viewModelScope.launch {
-            val solicitud = repository.obtenerSolicitud(id)
+        viewModelScope.launch(ioDispatcher + exceptionHandler) {
+            val solicitud = repository.obtenerSolicitud(id).firstOrNull()
             onResult(solicitud)
         }
     }
@@ -94,30 +176,39 @@ class PrestamoViewModel(
             estado = com.example.prstamolabctma.model.EstadoSolicitud.SOLICITADA
         )
 
-        viewModelScope.launch {
-            val resultado = repository.crearSolicitud(solicitud)
-            resultado
-                .onSuccess {
-                    _mensajeState.value = "Solicitud creada correctamente."
-                    _guardandoState.value = false
-                }
-                .onFailure { error ->
-                    _mensajeState.value = error.message ?: "No se pudo crear la solicitud."
-                    _guardandoState.value = false
-                }
+        viewModelScope.launch(ioDispatcher + exceptionHandler) {
+            try {
+                val resultado = repository.crearSolicitud(solicitud)
+                resultado
+                    .onSuccess {
+                        _mensajeState.value = "Solicitud creada correctamente."
+                        _guardandoState.value = false
+                    }
+                    .onFailure { error ->
+                        _mensajeState.value = error.message ?: "No se pudo crear la solicitud."
+                        _guardandoState.value = false
+                    }
+            } catch (e: Exception) {
+                _mensajeState.value = e.message ?: "No se pudo crear la solicitud."
+                _guardandoState.value = false
+            }
         }
     }
 
     fun cancelarSolicitud(id: Int) {
-        viewModelScope.launch {
-            val resultado = repository.cancelarSolicitud(id)
-            resultado
-                .onSuccess {
-                    _mensajeState.value = "Solicitud cancelada correctamente."
-                }
-                .onFailure { error ->
-                    mostrarMensaje(error.message ?: "No se pudo cancelar la solicitud.")
-                }
+        viewModelScope.launch(ioDispatcher + exceptionHandler) {
+            try {
+                val resultado = repository.cancelarSolicitud(id)
+                resultado
+                    .onSuccess {
+                        _mensajeState.value = "Solicitud cancelada correctamente."
+                    }
+                    .onFailure { error ->
+                        mostrarMensaje(error.message ?: "No se pudo cancelar la solicitud.")
+                    }
+            } catch (e: Exception) {
+                mostrarMensaje(e.message ?: "No se pudo cancelar la solicitud.")
+            }
         }
     }
 

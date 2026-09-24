@@ -13,15 +13,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.model.SolicitudPrestamo
+import com.example.prstamolabctma.ui.common.EmptyState
+import com.example.prstamolabctma.ui.common.ErrorState
+import com.example.prstamolabctma.ui.common.LoadingState
+import com.example.prstamolabctma.ui.common.UiState
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,23 +33,13 @@ fun SolicitudDetalleScreen(
     viewModel: PrestamoViewModel,
     onBack: () -> Unit
 ) {
-    var solicitud by remember { mutableStateOf<SolicitudPrestamo?>(null) }
-    var cargando by remember { mutableStateOf(true) }
-
-    LaunchedEffect(solicitudId) {
-        cargando = true
-        viewModel.obtenerSolicitud(solicitudId) { resultado ->
-            solicitud = resultado
-            cargando = false
-        }
-    }
+    val solicitudFlow = remember(solicitudId) { viewModel.obtenerSolicitudState(solicitudId) }
+    val solicitudUiState by solicitudFlow.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text("Detalle de solicitud")
-                }
+                title = { Text("Detalle de solicitud") }
             )
         }
     ) { paddingValues ->
@@ -60,59 +52,48 @@ fun SolicitudDetalleScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            if (cargando) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                when (val state = solicitudUiState) {
+                    is UiState.Loading -> {
+                        LoadingState(mensaje = "Cargando detalle de la solicitud...")
+                    }
 
-                Text(
-                    text = "Cargando solicitud...",
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                    is UiState.Empty -> {
+                        EmptyState(mensaje = "La solicitud requerida no existe.")
+                    }
 
-            } else if (solicitud == null) {
+                    is UiState.Error -> {
+                        ErrorState(mensaje = state.message)
+                    }
 
-                Text(
-                    text = "La solicitud no existe.",
-                    style = MaterialTheme.typography.titleLarge
-                )
+                    is UiState.Content<SolicitudPrestamo> -> {
+                        val sol = state.data
 
-            } else {
+                        Text(
+                            text = "Solicitud #${sol.id}",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
 
-                val sol = solicitud!!
+                        Text(text = "ID Equipo: ${sol.equipoId}")
+                        Text(text = "Ambiente / Destino: ${sol.ambienteDestino}")
+                        Text(text = "Propósito: ${sol.proposito}")
+                        Text(text = "Duración: ${sol.duracionHoras} hora(s)")
+                        Text(text = "Estado: ${sol.estado}")
 
-                Text(
-                    text = "Solicitud #${sol.id}",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-
-                Text(
-                    text = "ID Equipo: ${sol.equipoId}"
-                )
-
-                Text(
-                    text = "Ambiente / Destino: ${sol.ambienteDestino}"
-                )
-
-                Text(
-                    text = "Propósito: ${sol.proposito}"
-                )
-
-                Text(
-                    text = "Duración: ${sol.duracionHoras} hora(s)"
-                )
-
-                Text(
-                    text = "Estado: ${sol.estado}"
-                )
-
-                if (sol.estado == EstadoSolicitud.SOLICITADA) {
-
-                    Button(
-                        onClick = {
-                            viewModel.cancelarSolicitud(sol.id)
-                            onBack()
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Cancelar solicitud")
+                        if (sol.estado == EstadoSolicitud.SOLICITADA) {
+                            Button(
+                                onClick = {
+                                    viewModel.cancelarSolicitud(sol.id)
+                                    onBack()
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Cancelar solicitud")
+                            }
+                        }
                     }
                 }
             }

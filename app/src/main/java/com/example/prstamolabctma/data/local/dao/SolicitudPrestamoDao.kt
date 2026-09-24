@@ -15,7 +15,7 @@ interface SolicitudPrestamoDao {
     fun getAllSolicitudes(): Flow<List<SolicitudPrestamoEntity>>
 
     @Query("SELECT * FROM solicitudes_prestamo WHERE id = :id")
-    suspend fun getSolicitudById(id: Int): SolicitudPrestamoEntity?
+    fun getSolicitudById(id: Int): Flow<SolicitudPrestamoEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSolicitud(solicitud: SolicitudPrestamoEntity): Long
