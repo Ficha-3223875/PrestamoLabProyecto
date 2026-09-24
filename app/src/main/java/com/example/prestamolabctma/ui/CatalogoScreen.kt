@@ -53,18 +53,41 @@ fun CatalogoScreen(
         ) {
 
             Button(
-
                 onClick = onMisSolicitudes,
-
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(
-                        horizontal = 16.dp,
-                        vertical = 8.dp
-                    )
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
-
                 Text("Mis solicitudes")
+            }
+
+            // --- FILTROS VISUALES PERSISTENTES CON DATASTORE (Exigidos por la Guía de la Semana 6) ---
+            Text(
+                text = "Filtrar por categoría (Persistido con DataStore):",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp)
+            )
+
+            androidx.compose.foundation.lazy.LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val categoriasFiltro = listOf("TODOS", "ELECTRONICA", "COMPUTO", "MEDICION", "AUDIOVISUAL", "HERRAMIENTA")
+                items(categoriasFiltro) { cat ->
+                    val esSeleccionado = uiState.filtroCategoria == cat
+                    if (esSeleccionado) {
+                        Button(onClick = { viewModel.cambiarFiltroCategoria(cat) }) {
+                            Text(cat)
+                        }
+                    } else {
+                        OutlinedButton(onClick = { viewModel.cambiarFiltroCategoria(cat) }) {
+                            Text(cat)
+                        }
+                    }
+                }
             }
 
             LazyColumn(

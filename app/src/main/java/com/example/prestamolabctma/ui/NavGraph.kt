@@ -59,8 +59,20 @@ fun NavGraph() {
         // Controlador de navegación
         val navController = rememberNavController()
 
-        // ViewModel compartido por todas las pantallas
-        val viewModel: PrestamoViewModel = viewModel()
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val databaseLocal = androidx.compose.runtime.remember { com.example.prestamolabctma.data.local.BaseDatosLocal(context.applicationContext) }
+        val roomRepository = androidx.compose.runtime.remember { com.example.prestamolabctma.data.RoomPrestamoRepository(databaseLocal) }
+        val dsPreferences = androidx.compose.runtime.remember { com.example.prestamolabctma.data.local.PreferenciaDataStore(context.applicationContext) }
+
+        // ViewModel compartido por todas las pantallas con persistencia única en Room y DataStore
+        val viewModel: PrestamoViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+            factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                    return PrestamoViewModel(roomRepository, dsPreferences) as T
+                }
+            }
+        )
 
 
         // ==================================================

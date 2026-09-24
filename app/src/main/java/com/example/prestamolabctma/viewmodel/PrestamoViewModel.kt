@@ -9,37 +9,74 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+import androidx.lifecycle.viewModelScope
+import com.example.prestamolabctma.data.RoomPrestamoRepository
+import com.example.prestamolabctma.data.local.PreferenciaDataStore
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
+
 data class PrestamoUiState(
-
     val equipos: List<Equipo> = emptyList(),
-
     val solicitudes: List<SolicitudPrestamo> = emptyList(),
-
     val mensaje: String? = null,
-
-    val guardando: Boolean = false
+    val guardando: Boolean = false,
+    val filtroCategoria: String = "TODOS"
 )
 
 class PrestamoViewModel(
-    private val repository: PrestamoRepository =
-        InMemoryPrestamoRepository()
+    private val repository: PrestamoRepository = InMemoryPrestamoRepository(),
+    private val dataStore: PreferenciaDataStore? = null
 ) : ViewModel() {
 
-    private val _uiState =
-        MutableStateFlow(
+    private val _uiState = MutableStateFlow(PrestamoUiState())
+    val uiState: StateFlow<PrestamoUiState> = _uiState.asStateFlow()
 
-            PrestamoUiState(
-
-                equipos =
-                    repository.listarEquipos(),
-
-                solicitudes =
-                    repository.listarSolicitudes()
+    init {
+        // Si el repositorio es de Room (RoomPrestamoRepository) y hay DataStore, recolectamos reactivamente
+        if (repository is RoomPrestamoRepository && dataStore != null) {
+            viewModelScope.launch {
+                combine(
+                    repository.equiposFlow,
+                    repository.solicitudesFlow,
+                    dataStore.categoriaFiltroFlow
+                ) { listaEquipos, listaSolicitudes, filtro ->
+                    val equiposFiltrados = if (filtro == "TODOS") {
+                        listaEquipos
+                    } else {
+                        listaEquipos.filter { it.categoria.name == filtro }
+                    }
+                    _uiState.value.copy(
+                        equipos = equiposFiltrados,
+                        solicitudes = listaSolicitudes,
+                        filtroCategoria = filtro
+                    )
+                }.collect { nuevoEstado ->
+                    _uiState.value = nuevoEstado
+                }
+            }
+        } else {
+            // Respaldar comportamiento inicial para la memoria y pruebas unitarias anteriores
+            _uiState.value = PrestamoUiState(
+                equipos = repository.listarEquipos(),
+                solicitudes = repository.listarSolicitudes()
             )
-        )
+        }
+    }
 
-    val uiState: StateFlow<PrestamoUiState> =
-        _uiState.asStateFlow()
+    fun cambiarFiltroCategoria(categoria: String) {
+        if (dataStore != null) {
+            viewModelScope.launch {
+                dataStore.guardarCategoriaFiltro(categoria)
+            }
+        } else {
+            val todosEquipos = repository.listarEquipos()
+            val filtrados = if (categoria == "TODOS") todosEquipos else todosEquipos.filter { it.categoria.name == categoria }
+            _uiState.value = _uiState.value.copy(
+                equipos = filtrados,
+                filtroCategoria = categoria
+            )
+        }
+    }
 
     fun equipo(id: Int): Equipo? {
         return repository.obtenerEquipo(id)
@@ -83,11 +120,14 @@ class PrestamoViewModel(
                 duracionHoras
             )
 
+        val todosEquipos = repository.listarEquipos()
+        val filtroActual = _uiState.value.filtroCategoria
+        val equiposFiltrados = if (filtroActual == "TODOS") todosEquipos else todosEquipos.filter { it.categoria.name == filtroActual }
+
         _uiState.value =
             _uiState.value.copy(
 
-                equipos =
-                    repository.listarEquipos(),
+                equipos = equiposFiltrados,
 
                 solicitudes =
                     repository.listarSolicitudes(),
@@ -118,11 +158,14 @@ class PrestamoViewModel(
         val resultado =
             repository.cancelarSolicitud(id)
 
+        val todosEquipos = repository.listarEquipos()
+        val filtroActual = _uiState.value.filtroCategoria
+        val equiposFiltrados = if (filtroActual == "TODOS") todosEquipos else todosEquipos.filter { it.categoria.name == filtroActual }
+
         _uiState.value =
             _uiState.value.copy(
 
-                equipos =
-                    repository.listarEquipos(),
+                equipos = equiposFiltrados,
 
                 solicitudes =
                     repository.listarSolicitudes(),
