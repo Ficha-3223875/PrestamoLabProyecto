@@ -11,10 +11,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface SolicitudPrestamoDao {
 
-    @Query("SELECT * FROM solicitudes_prestamo")
+    @Query("SELECT * FROM solicitudes")
     fun getAllSolicitudes(): Flow<List<SolicitudPrestamoEntity>>
 
-    @Query("SELECT * FROM solicitudes_prestamo WHERE id = :id")
+    @Query("SELECT * FROM solicitudes WHERE id = :id")
     fun getSolicitudById(id: Int): Flow<SolicitudPrestamoEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -23,6 +23,12 @@ interface SolicitudPrestamoDao {
     @Update
     suspend fun updateSolicitud(solicitud: SolicitudPrestamoEntity)
 
-    @Query("UPDATE solicitudes_prestamo SET estado = :nuevoEstado, fotoEvidenciaUri = :evidenciaUri WHERE id = :solicitudId")
-    suspend fun registrarDevolucion(solicitudId: Int, nuevoEstado: String, evidenciaUri: String?)
+    @Query("UPDATE solicitudes SET estado = :nuevoEstado, evidenciaUri = :evidenciaUri, latitud = :latitud, longitud = :longitud WHERE id = :solicitudId")
+    suspend fun registrarDevolucion(
+        solicitudId: Int,
+        nuevoEstado: String,
+        evidenciaUri: String?,
+        latitud: Double? = null,
+        longitud: Double? = null
+    )
 }

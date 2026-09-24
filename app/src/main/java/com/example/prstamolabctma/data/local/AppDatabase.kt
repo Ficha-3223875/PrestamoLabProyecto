@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [EquipoEntity::class, SolicitudPrestamoEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -34,19 +34,20 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "prestamolab_db"
                 )
-                .addCallback(object : RoomDatabase.Callback() {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        CoroutineScope(Dispatchers.IO).launch {
-                            try {
-                                populateInitialEquipos(INSTANCE)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
+                    .fallbackToDestructiveMigration()
+                    .addCallback(object : RoomDatabase.Callback() {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            super.onCreate(db)
+                            CoroutineScope(Dispatchers.IO).launch {
+                                try {
+                                    populateInitialEquipos(INSTANCE)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
                             }
                         }
-                    }
-                })
-                .build()
+                    })
+                    .build()
                 INSTANCE = instance
 
                 // Garantizar siembra de datos si la base de datos está vacía

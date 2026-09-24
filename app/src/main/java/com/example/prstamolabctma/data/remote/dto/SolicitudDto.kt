@@ -1,19 +1,20 @@
 package com.example.prstamolabctma.data.remote.dto
 
-import com.example.prstamolabctma.data.local.entity.SolicitudPrestamoEntity
 import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.model.SolicitudPrestamo
 
 data class SolicitudDto(
-    val id: Int,
+    val id: Int = 0,
     val equipoId: Int,
     val ambienteDestino: String,
     val proposito: String,
     val duracionHoras: Int,
-    val estado: String
+    val estado: String,
+    val evidenciaUri: String? = null,
+    val latitud: Double? = null,
+    val longitud: Double? = null
 )
 
-// DTO -> Modelo de Dominio
 fun SolicitudDto.toDomain(): SolicitudPrestamo {
     return SolicitudPrestamo(
         id = id,
@@ -21,23 +22,13 @@ fun SolicitudDto.toDomain(): SolicitudPrestamo {
         ambienteDestino = ambienteDestino,
         proposito = proposito,
         duracionHoras = duracionHoras,
-        estado = runCatching { EstadoSolicitud.valueOf(estado) }.getOrDefault(EstadoSolicitud.SOLICITADA)
+        estado = try { EstadoSolicitud.valueOf(estado) } catch (_: Exception) { EstadoSolicitud.SOLICITADA },
+        evidenciaUri = evidenciaUri,
+        latitud = latitud,
+        longitud = longitud
     )
 }
 
-// DTO -> Entidad de Room
-fun SolicitudDto.toEntity(): SolicitudPrestamoEntity {
-    return SolicitudPrestamoEntity(
-        id = id,
-        equipoId = equipoId,
-        ambienteDestino = ambienteDestino,
-        proposito = proposito,
-        duracionHoras = duracionHoras,
-        estado = estado
-    )
-}
-
-// Modelo de Dominio -> DTO
 fun SolicitudPrestamo.toDto(): SolicitudDto {
     return SolicitudDto(
         id = id,
@@ -45,6 +36,9 @@ fun SolicitudPrestamo.toDto(): SolicitudDto {
         ambienteDestino = ambienteDestino,
         proposito = proposito,
         duracionHoras = duracionHoras,
-        estado = estado.name
+        estado = estado.name,
+        evidenciaUri = evidenciaUri,
+        latitud = latitud,
+        longitud = longitud
     )
 }

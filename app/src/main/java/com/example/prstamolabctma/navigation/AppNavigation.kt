@@ -9,7 +9,7 @@ import androidx.navigation.navArgument
 import com.example.prstamolabctma.ui.catalogo.CatalogoScreen
 import com.example.prstamolabctma.ui.equipo.EquipoScreen
 import com.example.prstamolabctma.ui.misprestamos.MisPrestamosScreen
-import com.example.prstamolabctma.ui.misprestamos.SolicitudDetalleScreen
+import com.example.prstamolabctma.ui.solicitud.SolicitudDetalleScreen
 import com.example.prstamolabctma.ui.solicitud.SolicitudScreen
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
 

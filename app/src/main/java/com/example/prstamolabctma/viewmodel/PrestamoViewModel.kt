@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.prstamolabctma.data.repository.PrestamoRepository
 import com.example.prstamolabctma.model.Equipo
+import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.model.SolicitudPrestamo
 import com.example.prstamolabctma.ui.common.UiState
 import kotlinx.coroutines.CoroutineDispatcher
@@ -85,15 +86,15 @@ class PrestamoViewModel(
             guardando = guardando
         )
     }
-    .catch { e ->
-        _mensajeState.value = e.message
-    }
-    .flowOn(ioDispatcher)
-    .stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.Eagerly,
-        initialValue = PrestamoUiState()
-    )
+        .catch { e ->
+            _mensajeState.value = e.message
+        }
+        .flowOn(ioDispatcher)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = PrestamoUiState()
+        )
 
     fun obtenerEquipoState(id: Int): StateFlow<UiState<Equipo>> {
         return repository.obtenerEquipo(id)
@@ -145,7 +146,10 @@ class PrestamoViewModel(
         equipoId: Int,
         ambienteDestino: String,
         proposito: String,
-        duracionHoras: Int
+        duracionHoras: Int,
+        evidenciaUri: String? = null,
+        latitud: Double? = null,
+        longitud: Double? = null
     ) {
         if (_guardandoState.value) return
 
@@ -173,7 +177,10 @@ class PrestamoViewModel(
             ambienteDestino = ambienteDestino.trim(),
             proposito = proposito.trim(),
             duracionHoras = duracionHoras,
-            estado = com.example.prstamolabctma.model.EstadoSolicitud.SOLICITADA
+            estado = EstadoSolicitud.SOLICITADA,
+            evidenciaUri = evidenciaUri,
+            latitud = latitud,
+            longitud = longitud
         )
 
         viewModelScope.launch(ioDispatcher + exceptionHandler) {

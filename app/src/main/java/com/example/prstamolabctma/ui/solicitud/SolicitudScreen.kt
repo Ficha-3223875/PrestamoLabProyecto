@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.prstamolabctma.model.Equipo
 import com.example.prstamolabctma.ui.common.EmptyState
 import com.example.prstamolabctma.ui.common.ErrorState
+import com.example.prstamolabctma.ui.common.EvidenciaUbicacionSection
 import com.example.prstamolabctma.ui.common.LoadingState
 import com.example.prstamolabctma.ui.common.UiState
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
@@ -50,6 +53,11 @@ fun SolicitudScreen(
     var ambienteDestino by remember { mutableStateOf("") }
     var proposito by remember { mutableStateOf("") }
     var duracionHoras by remember { mutableStateOf("") }
+
+    // Estados para almacenar foto y ubicación
+    var evidenciaUri by remember { mutableStateOf<String?>(null) }
+    var latitud by remember { mutableStateOf<Double?>(null) }
+    var longitud by remember { mutableStateOf<Double?>(null) }
 
     // Control de bloqueo inmediato para prevenir doble clic
     var enviandoLocal by remember { mutableStateOf(false) }
@@ -86,80 +94,90 @@ fun SolicitudScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                when (val state = equipoUiState) {
-                    is UiState.Loading -> {
-                        LoadingState(mensaje = "Cargando equipo...")
-                    }
+            when (val state = equipoUiState) {
+                is UiState.Loading -> {
+                    LoadingState(mensaje = "Cargando equipo...")
+                }
 
-                    is UiState.Empty -> {
-                        EmptyState(mensaje = "El equipo seleccionado no existe.")
-                    }
+                is UiState.Empty -> {
+                    EmptyState(mensaje = "El equipo seleccionado no existe.")
+                }
 
-                    is UiState.Error -> {
-                        ErrorState(mensaje = state.message)
-                    }
+                is UiState.Error -> {
+                    ErrorState(mensaje = state.message)
+                }
 
-                    is UiState.Content<Equipo> -> {
-                        val eq = state.data
+                is UiState.Content<Equipo> -> {
+                    val eq = state.data
 
-                        Text(
-                            text = "Equipo: ${eq.nombre}",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                    Text(
+                        text = "Equipo: ${eq.nombre}",
+                        style = MaterialTheme.typography.titleMedium
+                    )
 
-                        Text(text = "Categoría: ${eq.categoria}")
+                    Text(text = "Categoría: ${eq.categoria}")
 
-                        OutlinedTextField(
-                            value = ambienteDestino,
-                            onValueChange = { ambienteDestino = it },
-                            label = { Text("Ambiente o Destino") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
+                    OutlinedTextField(
+                        value = ambienteDestino,
+                        onValueChange = { ambienteDestino = it },
+                        label = { Text("Ambiente o Destino") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
 
-                        OutlinedTextField(
-                            value = proposito,
-                            onValueChange = { proposito = it },
-                            label = { Text("Propósito (10-180 caracteres)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            minLines = 3
-                        )
+                    OutlinedTextField(
+                        value = proposito,
+                        onValueChange = { proposito = it },
+                        label = { Text("Propósito (10-180 caracteres)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3
+                    )
 
-                        OutlinedTextField(
-                            value = duracionHoras,
-                            onValueChange = { duracionHoras = it },
-                            label = { Text("Duración (Horas: 1-8)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true
-                        )
+                    OutlinedTextField(
+                        value = duracionHoras,
+                        onValueChange = { duracionHoras = it },
+                        label = { Text("Duración (Horas: 1-8)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
 
-                        Button(
-                            onClick = {
-                                if (!enviandoLocal && !uiState.guardando) {
-                                    enviandoLocal = true
-                                    val horas = duracionHoras.toIntOrNull() ?: 0
-                                    viewModel.crearSolicitud(
-                                        equipoId = eq.id,
-                                        ambienteDestino = ambienteDestino,
-                                        proposito = proposito,
-                                        duracionHoras = horas
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !uiState.guardando && !enviandoLocal
-                        ) {
-                            Text(if (uiState.guardando || enviandoLocal) "Guardando..." else "Enviar Solicitud")
+                    // -------------------------------------------------------------
+                    // COMPONENTE DE EVIDENCIA, UBICACIÓN Y NOTIFICACIONES
+                    // -------------------------------------------------------------
+                    EvidenciaUbicacionSection(
+                        onEvidenciaCapturada = { uri, lat, lng ->
+                            evidenciaUri = uri
+                            latitud = lat
+                            longitud = lng
                         }
+                    )
+
+                    Button(
+                        onClick = {
+                            if (!enviandoLocal && !uiState.guardando) {
+                                enviandoLocal = true
+                                val horas = duracionHoras.toIntOrNull() ?: 0
+                                viewModel.crearSolicitud(
+                                    equipoId = eq.id,
+                                    ambienteDestino = ambienteDestino,
+                                    proposito = proposito,
+                                    duracionHoras = horas,
+                                    evidenciaUri = evidenciaUri,
+                                    latitud = latitud,
+                                    longitud = longitud
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !uiState.guardando && !enviandoLocal
+                    ) {
+                        Text(if (uiState.guardando || enviandoLocal) "Guardando..." else "Enviar Solicitud")
                     }
                 }
             }

@@ -48,6 +48,10 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
+    // Capacidades del Dispositivo (Coil + Play Services Location)
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+
     // Compose & Navigation
     implementation(platform(libs.androidx.compose.bom))
     implementation("androidx.navigation:navigation-compose:2.8.5")
@@ -60,14 +64,19 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
 
-    // Testing
+    // Unit Testing
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    // UI Instrumentated Testing (AndroidTest)
     androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.compose.ui:ui-test")
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Debug Manifest & Tooling
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
 
