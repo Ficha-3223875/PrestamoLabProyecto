@@ -1,10 +1,12 @@
 package com.example.prstamolabctma.navigation
 
+import android.app.Application
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -22,7 +24,10 @@ import com.example.prstamolabctma.viewmodel.PrestamoViewModel
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    val viewModel: PrestamoViewModel = viewModel()
+    val context = LocalContext.current
+    val viewModel: PrestamoViewModel = viewModel(
+        factory = PrestamoViewModel.Factory(context.applicationContext as Application)
+    )
 
     NavHost(
         navController = navController,

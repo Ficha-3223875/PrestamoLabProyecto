@@ -9,6 +9,7 @@ import androidx.navigation.NavController
 import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.model.SolicitudPrestamo
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -17,8 +18,12 @@ fun SolicitudScreen(navController: NavController, equipoId: Int, viewModel: Pres
     var proposito by remember { mutableStateOf("") }
     var duracion by remember { mutableStateOf("") }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Solicitud de préstamo") }) }
+        topBar = { TopAppBar(title = { Text("Solicitud de préstamo") }) },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding).padding(16.dp)) {
             OutlinedTextField(
@@ -28,34 +33,51 @@ fun SolicitudScreen(navController: NavController, equipoId: Int, viewModel: Pres
                 modifier = Modifier.fillMaxWidth()
             )
 
+            Spacer(modifier = Modifier.height(8.dp))
+
             OutlinedTextField(
                 value = proposito,
                 onValueChange = { proposito = it },
-                label = { Text("Propósito") },
+                label = { Text("Propósito (10-180 caracteres)") },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
                 value = duracion,
                 onValueChange = { duracion = it },
-                label = { Text("Duración (horas)") },
+                label = { Text("Duración (1-8 horas)") },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(onClick = {
-                val solicitud = SolicitudPrestamo(
-                    id = viewModel.solicitudes.value.size + 1,
-                    equipoId = equipoId,
-                    ambienteDestino = ambiente,
-                    proposito = proposito,
-                    duracionHoras = duracion.toIntOrNull() ?: 1,
-                    estado = EstadoSolicitud.SOLICITADA
-                )
-                viewModel.crearSolicitud(solicitud)
-                navController.navigate("misSolicitudes")
-            }) {
+            Button(
+                onClick = {
+                    val solicitud = SolicitudPrestamo(
+                        id = 0, // Generado por Room @PrimaryKey(autoGenerate = true)
+                        equipoId = equipoId,
+                        ambienteDestino = ambiente,
+                        proposito = proposito,
+                        duracionHoras = duracion.toIntOrNull() ?: 0,
+                        estado = EstadoSolicitud.SOLICITADA
+                    )
+                    viewModel.crearSolicitud(solicitud) { result ->
+                        if (result.isSuccess) {
+                            navController.navigate("misSolicitudes") {
+                                popUpTo("catalogo") { inclusive = false }
+                            }
+                        } else {
+                            val errorMsg = result.exceptionOrNull()?.message ?: "Error al crear la solicitud"
+                            scope.launch {
+                                snackbarHostState.showSnackbar(errorMsg)
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text("Guardar solicitud")
             }
         }

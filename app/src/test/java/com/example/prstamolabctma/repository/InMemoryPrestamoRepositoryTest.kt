@@ -1,6 +1,7 @@
 package com.example.prstamolabctma.repository
 
 import com.example.prstamolabctma.model.*
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -17,21 +18,21 @@ class InMemoryPrestamoRepositoryTest {
     // --- Catálogo y Equipos ---
 
     @Test
-    fun `verificar que se muestren los equipos disponibles`() {
+    fun `verificar que se muestren los equipos disponibles`() = runTest {
         val equipos = repository.obtenerEquipos()
         val disponibles = equipos.filter { it.estado == EstadoEquipo.DISPONIBLE }
         assertTrue("Debería haber al menos un equipo disponible al inicio", disponibles.isNotEmpty())
     }
 
     @Test
-    fun `verificar que cada equipo aparezca de manera individual`() {
+    fun `verificar que cada equipo aparezca de manera individual`() = runTest {
         val equipos = repository.obtenerEquipos()
         val ids = equipos.map { it.id }
         assertEquals("Los IDs de los equipos deben ser únicos", ids.size, ids.toSet().size)
     }
 
     @Test
-    fun `verificar que la informacion de cada equipo sea correcta`() {
+    fun `verificar que la informacion de cada equipo sea correcta`() = runTest {
         val equipo = repository.obtenerEquipo(1)
         assertNotNull(equipo)
         assertEquals("Multímetro", equipo?.nombre)
@@ -39,7 +40,7 @@ class InMemoryPrestamoRepositoryTest {
     }
 
     @Test
-    fun `verificar que los equipos no disponibles no aparezcan como disponibles`() {
+    fun `verificar que los equipos no disponibles no aparezcan como disponibles`() = runTest {
         val equipos = repository.obtenerEquipos()
         val reservado = equipos.find { it.id == 3 } // ID 3 es reservado en el repo in-memory
         assertNotNull(reservado)
@@ -47,9 +48,7 @@ class InMemoryPrestamoRepositoryTest {
     }
 
     @Test
-    fun `verificar el comportamiento cuando no hay equipos registrados`() {
-        // En un repo real esto requeriría un repo vacío, simulamos lógica si fuera aplicable
-        // Para InMemoryPrestamoRepository siempre hay 3 equipos iniciales.
+    fun `verificar el comportamiento cuando no hay equipos registrados`() = runTest {
         val equipos = repository.obtenerEquipos()
         assertFalse(equipos.isEmpty())
     }
@@ -57,7 +56,7 @@ class InMemoryPrestamoRepositoryTest {
     // --- Solicitudes y Registro ---
 
     @Test
-    fun `verificar que se pueda registrar una solicitud valida`() {
+    fun `verificar que se pueda registrar una solicitud valida`() = runTest {
         val solicitud = SolicitudPrestamo(
             id = 100,
             equipoId = 1,
@@ -68,13 +67,13 @@ class InMemoryPrestamoRepositoryTest {
         )
         val result = repository.crearSolicitud(solicitud)
         assertTrue(result.isSuccess)
-        
+
         val equipo = repository.obtenerEquipo(1)
         assertEquals(EstadoEquipo.RESERVADO, equipo?.estado)
     }
 
     @Test
-    fun `verificar que la solicitud quede en estado SOLICITADA`() {
+    fun `verificar que la solicitud quede en estado SOLICITADA`() = runTest {
         val solicitud = SolicitudPrestamo(101, 2, "Lab 2", "Uso de laptop para programación", 4, EstadoSolicitud.SOLICITADA)
         repository.crearSolicitud(solicitud)
         val guardada = repository.obtenerSolicitud(101)
@@ -82,13 +81,13 @@ class InMemoryPrestamoRepositoryTest {
     }
 
     @Test
-    fun `verificar que no se creen solicitudes duplicadas para el mismo equipo`() {
+    fun `verificar que no se creen solicitudes duplicadas para el mismo equipo`() = runTest {
         val solicitud1 = SolicitudPrestamo(102, 1, "Lab 1", "Propósito válido largo", 2, EstadoSolicitud.SOLICITADA)
         val solicitud2 = SolicitudPrestamo(103, 1, "Lab 1", "Propósito válido largo", 2, EstadoSolicitud.SOLICITADA)
-        
+
         repository.crearSolicitud(solicitud1)
         val result = repository.crearSolicitud(solicitud2)
-        
+
         assertTrue(result.isFailure)
         assertEquals("Ya existe una solicitud activa para este equipo", result.exceptionOrNull()?.message)
     }
@@ -96,21 +95,21 @@ class InMemoryPrestamoRepositoryTest {
     // --- Validaciones de Datos ---
 
     @Test
-    fun `verificar proposito con menos de 10 caracteres falla`() {
+    fun `verificar proposito con menos de 10 caracteres falla`() = runTest {
         val solicitud = SolicitudPrestamo(200, 1, "Lab 1", "Corto", 2, EstadoSolicitud.SOLICITADA)
         val result = repository.crearSolicitud(solicitud)
         assertTrue(result.isFailure)
     }
 
     @Test
-    fun `verificar duracion fuera de rango (0 horas) falla`() {
+    fun `verificar duracion fuera de rango (0 horas) falla`() = runTest {
         val solicitud = SolicitudPrestamo(201, 1, "Lab 1", "Propósito válido largo", 0, EstadoSolicitud.SOLICITADA)
         val result = repository.crearSolicitud(solicitud)
         assertTrue(result.isFailure)
     }
 
     @Test
-    fun `verificar que el destino sea obligatorio`() {
+    fun `verificar que el destino sea obligatorio`() = runTest {
         val solicitud = SolicitudPrestamo(202, 1, "", "Propósito válido largo", 2, EstadoSolicitud.SOLICITADA)
         val result = repository.crearSolicitud(solicitud)
         assertTrue(result.isFailure)
@@ -120,16 +119,16 @@ class InMemoryPrestamoRepositoryTest {
     // --- Cancelación ---
 
     @Test
-    fun `verificar que se pueda cancelar una solicitud SOLICITADA`() {
+    fun `verificar que se pueda cancelar una solicitud SOLICITADA`() = runTest {
         val solicitud = SolicitudPrestamo(300, 1, "Lab 1", "Propósito válido largo", 2, EstadoSolicitud.SOLICITADA)
         repository.crearSolicitud(solicitud)
-        
+
         val result = repository.cancelarSolicitud(300)
         assertTrue(result.isSuccess)
-        
+
         val solicitudGuardada = repository.obtenerSolicitud(300)
         assertEquals(EstadoSolicitud.CANCELADA, solicitudGuardada?.estado)
-        
+
         val equipo = repository.obtenerEquipo(1)
         assertEquals(EstadoEquipo.DISPONIBLE, equipo?.estado)
     }

@@ -1,5 +1,9 @@
 package com.example.prstamolabctma.repository
+
 import com.example.prstamolabctma.model.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class InMemoryPrestamoRepository : PrestamoRepository {
     private val equipos = mutableListOf(
@@ -10,12 +14,23 @@ class InMemoryPrestamoRepository : PrestamoRepository {
 
     private val solicitudes = mutableListOf<SolicitudPrestamo>()
 
-    override fun obtenerEquipos(): List<Equipo> = equipos
-    override fun obtenerEquipo(id: Int): Equipo? = equipos.find { it.id == id }
-    override fun obtenerSolicitudes(): List<SolicitudPrestamo> = solicitudes
-    override fun obtenerSolicitud(id: Int): SolicitudPrestamo? = solicitudes.find { it.id == id }
+    private val _equiposFlow = MutableStateFlow<List<Equipo>>(equipos.toList())
+    private val _solicitudesFlow = MutableStateFlow<List<SolicitudPrestamo>>(solicitudes.toList())
 
-    override fun crearSolicitud(solicitud: SolicitudPrestamo): Result<Unit> {
+    private fun notifyChanges() {
+        _equiposFlow.value = equipos.toList()
+        _solicitudesFlow.value = solicitudes.toList()
+    }
+
+    override fun obtenerEquiposFlow(): Flow<List<Equipo>> = _equiposFlow.asStateFlow()
+    override suspend fun obtenerEquipos(): List<Equipo> = equipos.toList()
+    override suspend fun obtenerEquipo(id: Int): Equipo? = equipos.find { it.id == id }
+
+    override fun obtenerSolicitudesFlow(): Flow<List<SolicitudPrestamo>> = _solicitudesFlow.asStateFlow()
+    override suspend fun obtenerSolicitudes(): List<SolicitudPrestamo> = solicitudes.toList()
+    override suspend fun obtenerSolicitud(id: Int): SolicitudPrestamo? = solicitudes.find { it.id == id }
+
+    override suspend fun crearSolicitud(solicitud: SolicitudPrestamo): Result<Unit> {
         // Validaciones de negocio
         if (solicitud.ambienteDestino.isBlank()) {
             return Result.failure(Exception("El destino es obligatorio"))
@@ -37,18 +52,20 @@ class InMemoryPrestamoRepository : PrestamoRepository {
         return if (equipo != null && equipo.estado == EstadoEquipo.DISPONIBLE) {
             solicitudes.add(solicitud)
             equipo.estado = EstadoEquipo.RESERVADO
+            notifyChanges()
             Result.success(Unit)
         } else {
             Result.failure(Exception("Equipo no disponible"))
         }
     }
 
-    override fun cancelarSolicitud(id: Int): Result<Unit> {
+    override suspend fun cancelarSolicitud(id: Int): Result<Unit> {
         val solicitud = obtenerSolicitud(id)
         return if (solicitud != null && solicitud.estado == EstadoSolicitud.SOLICITADA) {
             solicitud.estado = EstadoSolicitud.CANCELADA
-            var equipo = obtenerEquipo(solicitud.equipoId)
+            val equipo = obtenerEquipo(solicitud.equipoId)
             equipo?.estado = EstadoEquipo.DISPONIBLE
+            notifyChanges()
             Result.success(Unit)
         } else {
             Result.failure(Exception("No se puede cancelar"))
