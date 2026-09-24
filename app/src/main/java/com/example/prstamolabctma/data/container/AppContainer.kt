@@ -1,7 +1,8 @@
-package com.example.prstamolabctma.data
+package com.example.prstamolabctma.data.container
 
 import android.content.Context
 import com.example.prstamolabctma.data.local.AppDatabase
+import com.example.prstamolabctma.data.remote.NetworkModule
 import com.example.prstamolabctma.data.repository.OfflineFirstPrestamoRepository
 import com.example.prstamolabctma.data.repository.PrestamoRepository
 
@@ -16,11 +17,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         AppDatabase.getDatabase(context)
     }
 
-    // 2. Inyectamos los DAOs dentro de nuestro repositorio
+    // 2. Inyectamos los DAOs y el servicio de API dentro del repositorio
     override val prestamoRepository: PrestamoRepository by lazy {
         OfflineFirstPrestamoRepository(
             equipoDao = database.equipoDao(),
-            solicitudDao = database.solicitudPrestamoDao()
+            solicitudDao = database.solicitudPrestamoDao(),
+            apiService = NetworkModule.apiService
         )
     }
 }

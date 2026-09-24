@@ -1,8 +1,8 @@
 package com.example.prstamolabctma
 
 import android.app.Application
-import com.example.prstamolabctma.data.AppContainer
-import com.example.prstamolabctma.data.DefaultAppContainer
+import com.example.prstamolabctma.data.container.AppContainer
+import com.example.prstamolabctma.data.container.DefaultAppContainer
 
 class PrestamoLabApplication : Application() {
 
