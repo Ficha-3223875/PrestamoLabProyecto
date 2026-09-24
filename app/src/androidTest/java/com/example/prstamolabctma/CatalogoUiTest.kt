@@ -13,7 +13,7 @@ class CatalogoUiTest {
 
     @Test
     fun verificar_tituloCatalogo_seMuestraEnPantalla() {
-        composeTestRule.onNodeWithText("PréstamoLab CTMA", substring = true)
+        composeTestRule.onNodeWithText("Catálogo", substring = true)
             .assertIsDisplayed()
     }
 }
