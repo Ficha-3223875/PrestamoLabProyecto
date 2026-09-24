@@ -4,6 +4,7 @@ import com.example.prstamolabctma.data.local.dao.EquipoDao
 import com.example.prstamolabctma.data.local.dao.SolicitudDao
 import com.example.prstamolabctma.data.local.entity.EquipoEntity
 import com.example.prstamolabctma.data.local.entity.SolicitudEntity
+import com.example.prstamolabctma.data.remote.ApiService
 import com.example.prstamolabctma.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -11,11 +12,11 @@ import kotlinx.coroutines.flow.map
 
 class RoomPrestamoRepository(
     private val equipoDao: EquipoDao,
-    private val solicitudDao: SolicitudDao
+    private val solicitudDao: SolicitudDao,
+    private val apiService: ApiService? = null // Opcional para pruebas o modo sin conexión
 ) : PrestamoRepository {
 
     suspend fun sembrarSiVacio() {
-        // Usamos .first() para leer la lista actual del Flow una vez al iniciar la app
         if (equipoDao.obtenerEquipos().first().isEmpty()) {
             equipoDao.insertarEquipos(
                 listOf(
@@ -27,14 +28,37 @@ class RoomPrestamoRepository(
         }
     }
 
-    // 👈 Convertido a Flow con mapeo automático al modelo de dominio
+    /**
+     * Sincroniza los equipos desde la API remota hacia la base de datos local Room (Local-First)
+     */
+    suspend fun sincronizarEquipos() {
+        try {
+            val response = apiService?.obtenerEquiposRemotos()
+            if (response != null && response.isSuccessful) {
+                response.body()?.let { listaDto ->
+                    val entidades = listaDto.map { dto ->
+                        val dominio = dto.toDomain()
+                        EquipoEntity(
+                            id = dominio.id,
+                            nombre = dominio.nombre,
+                            categoria = dominio.categoria,
+                            estado = dominio.estado
+                        )
+                    }
+                    equipoDao.insertarEquipos(entidades)
+                }
+            }
+        } catch (e: Exception) {
+            // Error de red controlado
+        }
+    }
+
     override fun obtenerEquipos(): Flow<List<Equipo>> =
         equipoDao.obtenerEquipos().map { lista -> lista.map { it.toDomain() } }
 
     override suspend fun obtenerEquipo(id: Int): Equipo? =
         equipoDao.obtenerEquipo(id)?.toDomain()
 
-    // 👈 Convertido a Flow con mapeo automático al modelo de dominio
     override fun obtenerSolicitudes(): Flow<List<SolicitudPrestamo>> =
         solicitudDao.obtenerSolicitudes().map { lista -> lista.map { it.toDomain() } }
 
@@ -45,16 +69,18 @@ class RoomPrestamoRepository(
         val equipo = equipoDao.obtenerEquipo(solicitud.equipoId) ?: return false
         if (equipo.estado != EstadoEquipo.DISPONIBLE) return false
 
-        solicitudDao.insertarSolicitud(
-            SolicitudEntity(
-                equipoId = solicitud.equipoId,
-                ambienteDestino = solicitud.ambienteDestino,
-                proposito = solicitud.proposito,
-                duracionHoras = solicitud.duracionHoras,
-                estado = EstadoSolicitud.SOLICITADA
-            )
+        val nuevaSolicitudEntity = SolicitudEntity(
+            equipoId = solicitud.equipoId,
+            ambienteDestino = solicitud.ambienteDestino,
+            proposito = solicitud.proposito,
+            duracionHoras = solicitud.duracionHoras,
+            estado = EstadoSolicitud.SOLICITADA
         )
+
+        solicitudDao.insertarSolicitud(nuevaSolicitudEntity)
         equipoDao.actualizarEquipo(equipo.copy(estado = EstadoEquipo.RESERVADO))
+
+        // Opcional: Sincronizar creación con la API remota de manera asíncrona si hay conectividad
         return true
     }
 

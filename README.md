@@ -111,5 +111,15 @@ El incremento cumple con la mayoría de criterios de aceptación. Se identificó
 
 
 
+# PréstamoLab CTMA - Incremento v0.5.0 (Guía 8)
 
+## 📌 Descripción de la Semana 8
+En esta etapa se implementó la capa de red utilizando **Retrofit** y **OkHttp**, integrando una estrategia **Local-First** donde la base de datos local (**Room**) actúa como la fuente canónica de verdad y la red sincroniza los datos de forma asíncrona.
 
+## 🛠️ Componentes Técnicos Implementados
+* **Capa de Red**: Consumo de API REST mediante `ApiService` y `ApiClient`.
+* **DTOs y Mapeadores**: Creación de `EquipoDto` y `SolicitudDto` con mapeo seguro hacia los modelos de dominio y entidades de Room.
+* **Estrategia Local-First**: Sincronización automática de equipos en segundo plano manteniendo la persistencia offline.
+* **Pruebas de Integración HTTP**: Pruebas automatizadas del cliente HTTP utilizando `MockWebServer`[cite: 9].
+
+En resumen: estoy utilizando un cliente REST con Retrofit y Gson, configurado con una arquitectura Local-First (donde Room guarda los datos de forma permanente y la red sincroniza mediante ApiService), totalmente preparado tanto para conectar a un backend simulado/local como para ser probado mediante MockWebServer en tus tests unitarios.

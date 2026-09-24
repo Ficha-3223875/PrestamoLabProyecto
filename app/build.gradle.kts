@@ -62,4 +62,12 @@ dependencies {
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3") // O la versión que maneje tu proyecto
+    // Retrofit y Gson Converter
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // OkHttp (Logging Interceptor opcional pero recomendado)
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    // 👇 Agrega esta dependencia para MockWebServer (Guía 8)
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.11.0")
 }
