@@ -128,3 +128,43 @@ La aplicación implementa una arquitectura limpia y robusta:
 Conforme a los lineamientos del programa de formación:
 * **Propósito de apoyo**: La asistencia de inteligencia artificial se utilizó como herramienta de apoyo para el diseño de patrones arquitectónicos reactivos (`StateFlow`), estructuración de pruebas unitarias con corrutinas y la configuración de contratos de hardware (`FileProvider` y Bluetooth).
 * **Verificación y Autoría**: Todo el código y los artefactos generados fueron auditados, probados localmente y validados por el equipo de desarrollo, el cual posee plena autoría y capacidad para explicar y modificar cualquier componente durante la sustentación.
+
+
+## Preguntas 
+
+# Informe de Sustentación y Respuestas Clave – PréstamoLab CTMA
+
+Este documento presenta las respuestas formales y técnicas a las preguntas de sustentación del proyecto integrador, detallando la trazabilidad, arquitectura, pruebas y mecanismos de calidad implementados.
+
+---
+
+### 1. Abra una HU y muestre un criterio de aceptación; siga la trazabilidad hasta el código y la prueba que lo valida.
+Para cumplir con la trazabilidad, tomamos como ejemplo la **HU-03** (Registrar solicitud de préstamo) documentada en los Issues del repositorio. Su criterio de aceptación establece que al guardar una solicitud válida, se genera un único registro y el equipo pasa automáticamente al estado de reservado. En el código fuente, esta regla está implementada en el ViewModel y coordinada por el repositorio para persistirse en Room, y su comportamiento se verifica de forma automatizada mediante una prueba unitaria en `PrestamoViewModelTest.kt`.
+
+### 2. Explique por qué Room se considera fuente local canónica en su solución.
+Room se define como la fuente local canónica porque la aplicación se diseñó bajo una estrategia *Local-First*. Esto significa que la persistencia en la base de datos local de SQLite (manejada por Room) es la verdad oficial del estado de los equipos y solicitudes, garantizando que la aplicación sea plenamente funcional sin conexión a internet. La capa remota con Retrofit actúa únicamente como un mecanismo complementario para sincronizar información cuando hay conectividad, pero la operación principal y el almacenamiento estable residen localmente en Room.
+
+### 3. ¿Qué diferencia existe entre Flow y StateFlow en el contexto del ViewModel?
+Un `Flow` tradicional es un flujo de datos asíncrono de tipo frío, lo que significa que emite valores secuencialmente cada vez que se recolecta (por ejemplo, al consultar listas desde la base de datos). Por su parte, el `StateFlow` es un flujo caliente que mantiene y retiene siempre el último estado emitido en memoria, compartiéndolo de inmediato con cualquier nueva pantalla que se suscriba. Esto lo hace idóneo para exponer el `UiState` que consume Jetpack Compose de forma reactiva.
+
+### 4. Muestre un caso de error de red y explique cómo se representa en UiState.
+Ante un fallo de red o un código de error HTTP proveniente del servidor mediante Retrofit, la excepción es capturada mediante un bloque `try-catch` en el ViewModel. En ese instante, el `StateFlow` emite un estado correspondiente al error (por ejemplo, `UiState.Error("Error de conexión")`). La interfaz en Jetpack Compose observa este cambio en el estado y actualiza la vista mostrando una alerta o un mecanismo de reintento para el usuario.
+
+### 5. Seleccione un test automatizado y explique Arrange, Act y Assert.
+En las pruebas unitarias del ViewModel implementamos el patrón AAA. Tomando como ejemplo la prueba de creación de una solicitud: en la sección *Arrange* (Preparar) configuramos los mocks y datos iniciales del repositorio; en la sección *Act* (Actuar) ejecutamos la función que procesa la solicitud; y en la sección *Assert* (Afirmar) validamos mediante aserciones que el estado final emitido en el `UiState` corresponda exactamente al resultado esperado.
+
+### 6. ¿Qué parte del incremento fue desarrollada mediante TDD y qué aprendieron?
+La metodología TDD se aplicó en la lógica de validación de los formularios de solicitud (como verificar que el propósito cumpla con el rango de longitud permitido). El proceso consistió en redactar primero la prueba unitaria sabiendo que fallaría (*Red*), escribir el código mínimo necesario para superarla (*Green*), y finalmente optimizar la estructura (*Refactor*). Esto permitió anticipar casos límite y prevenir errores lógicos desde las etapas tempranas de desarrollo.
+
+### 7. Muestre un defecto encontrado, su confirmación y la regresión seleccionada.
+Durante la fase de pruebas funcionales se identificó el defecto registrado como **BUG-03**, donde una doble pulsación rápida sobre el botón de guardar generaba solicitudes duplicadas. Tras confirmarlo en la bitácora, se implementó un control de bloqueo de estado en la UI y se añadió el caso de prueba de regresión **TC-13** para asegurar que dicho comportamiento no volviera a presentarse.
+
+### 8. ¿Qué permiso del dispositivo solicitaron y por qué cumple mínimo privilegio?
+Se solicitó el permiso del sistema para el uso de la cámara (`CAMERA`) enfocado estrictamente a la captura de la evidencia fotográfica del equipo, y Bluetooth para la gestión de periféricos. Este requerimiento cumple con el principio de mínimo privilegio debido a que no se solicita al iniciar la aplicación, sino que el sistema despliega la petición de autorización únicamente en el momento preciso y justificado en que el usuario interactúa con la opción de tomar la foto.
+
+### 9. ¿Qué quality gates utiliza su Pull Request?
+Como filtros automáticos de calidad se configuró un pipeline en GitHub Actions. Cada vez que se abre un Pull Request hacia la rama principal del proyecto, el sistema ejecuta de forma obligatoria la compilación completa de la aplicación, la ejecución de la suite de pruebas automatizadas y la verificación de estilo mediante el linter, bloqueando la integración si alguna de estas validaciones no es superada.
+
+### 10. ¿Qué riesgo residual permanece en el incremento actual?
+El principal riesgo residual identificado se relaciona con la sincronización y resolución de conflictos ante modificaciones masivas realizadas offline durante periodos prolongados antes de conectarse al servidor. La estrategia actual resuelve las discrepancias aplicando una política en la que el último cambio local prevalece, dejando abierta la implementación futura de un motor de resolución bidireccional más robusto.
+
