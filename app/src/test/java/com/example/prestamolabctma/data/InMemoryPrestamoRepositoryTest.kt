@@ -2,6 +2,7 @@ package com.example.prestamolabctma.data
 
 import com.example.prestamolabctma.model.EstadoEquipo
 import com.example.prestamolabctma.model.EstadoSolicitud
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -59,11 +60,10 @@ class InMemoryPrestamoRepositoryTest {
         }
     }
 
-    // --- GRUPO 2: Registro de solicitud válida y estados ---
+    // --- GRUPO 2: Registro de solicitud válida y estados (Pruebas Suspend - Semana 7) ---
 
     @Test
-    fun testVerificarQueSePuedaRegistrarUnaSolicitudValida() {
-        // El equipo 1 está DISPONIBLE
+    fun testVerificarQueSePuedaRegistrarUnaSolicitudValida() = runBlocking {
         val resultado = repository.crearSolicitud(
             equipoId = 1,
             ambienteDestino = "Laboratorio A",
@@ -75,7 +75,7 @@ class InMemoryPrestamoRepositoryTest {
     }
 
     @Test
-    fun testVerificarQueLaSolicitudQuedeEnEstadoSOLICITADA() {
+    fun testVerificarQueLaSolicitudQuedeEnEstadoSOLICITADA() = runBlocking {
         val resultado = repository.crearSolicitud(
             equipoId = 1,
             ambienteDestino = "Laboratorio A",
@@ -88,7 +88,7 @@ class InMemoryPrestamoRepositoryTest {
     }
 
     @Test
-    fun testVerificarQueElEquipoPaseARESERVADO() {
+    fun testVerificarQueElEquipoPaseARESERVADO() = runBlocking {
         val equipoAntes = repository.obtenerEquipo(1)
         assertEquals(EstadoEquipo.DISPONIBLE, equipoAntes?.estado)
 
@@ -104,7 +104,7 @@ class InMemoryPrestamoRepositoryTest {
     }
 
     @Test
-    fun testVerificarQueNoSeCreanSolicitudesDuplicadasParaMismoEquipoActivo() {
+    fun testVerificarQueNoSeCreanSolicitudesDuplicadasParaMismoEquipoActivo() = runBlocking {
         val resultado1 = repository.crearSolicitud(
             equipoId = 1,
             ambienteDestino = "Laboratorio A",
@@ -113,7 +113,6 @@ class InMemoryPrestamoRepositoryTest {
         )
         assertTrue(resultado1.isSuccess)
 
-        // Intentar crear otra solicitud para el mismo equipo que ahora está RESERVADO/activo
         val resultado2 = repository.crearSolicitud(
             equipoId = 1,
             ambienteDestino = "Laboratorio B",
@@ -127,7 +126,7 @@ class InMemoryPrestamoRepositoryTest {
     // --- GRUPO 3: Cancelación ---
 
     @Test
-    fun testVerificarQueSePuedaCancelarUnaSolicitudSOLICITADA() {
+    fun testVerificarQueSePuedaCancelarUnaSolicitudSOLICITADA() = runBlocking {
         val resultadoSol = repository.crearSolicitud(
             equipoId = 1,
             ambienteDestino = "Laboratorio A",
@@ -140,7 +139,7 @@ class InMemoryPrestamoRepositoryTest {
     }
 
     @Test
-    fun testVerificarQueLaSolicitudPaseACANCELADA() {
+    fun testVerificarQueLaSolicitudPaseACANCELADA() = runBlocking {
         val resultadoSol = repository.crearSolicitud(
             equipoId = 1,
             ambienteDestino = "Laboratorio A",
@@ -154,7 +153,7 @@ class InMemoryPrestamoRepositoryTest {
     }
 
     @Test
-    fun testVerificarQueElEquipoPaseADISPONIBLE() {
+    fun testVerificarQueElEquipoPaseADISPONIBLE() = runBlocking {
         val resultadoSol = repository.crearSolicitud(
             equipoId = 1,
             ambienteDestino = "Laboratorio A",
@@ -171,11 +170,11 @@ class InMemoryPrestamoRepositoryTest {
     // --- GRUPO 4: Validaciones de Datos ---
 
     @Test
-    fun testVerificarPropositoConMenosDe10Caracteres() {
+    fun testVerificarPropositoConMenosDe10Caracteres() = runBlocking {
         val resultado = repository.crearSolicitud(
             equipoId = 1,
             ambienteDestino = "Laboratorio A",
-            proposito = "Corto", // 5 caracteres
+            proposito = "Corto",
             duracionHoras = 4
         )
         assertTrue(resultado.isFailure)
@@ -184,41 +183,35 @@ class InMemoryPrestamoRepositoryTest {
     }
 
     @Test
-    fun testVerificarPropositoEntre10Y180Caracteres() {
+    fun testVerificarPropositoEntre10Y180Caracteres() = runBlocking {
         val resultado = repository.crearSolicitud(
             equipoId = 1,
             ambienteDestino = "Laboratorio A",
-            proposito = "Cumple con el tamaño mínimo requerido", // >10 y <180
+            proposito = "Cumple con el tamaño mínimo requerido",
             duracionHoras = 4
         )
         assertTrue(resultado.isSuccess)
     }
 
     @Test
-    fun testVerificarDuracionEntre1Y8Horas() {
-        // Límite inferior válido (1 hora)
+    fun testVerificarDuracionEntre1Y8Horas() = runBlocking {
         assertTrue(repository.crearSolicitud(1, "Lab A", "Proposito válido largo", 1).isSuccess)
-        
-        // Límite superior válido (8 horas)
-        // Usamos equipo 2 ya que el 1 pasó a reservado en la línea anterior
         assertTrue(repository.crearSolicitud(2, "Lab A", "Proposito válido largo", 8).isSuccess)
 
-        // Inválido por debajo (0 horas)
         val resBajo = repository.crearSolicitud(3, "Lab A", "Proposito válido largo", 0)
         assertTrue(resBajo.isFailure)
         assertEquals("La duración debe estar entre 1 y 8 horas.", resBajo.exceptionOrNull()?.message)
 
-        // Inválido por encima (9 horas)
         val resAlto = repository.crearSolicitud(3, "Lab A", "Proposito válido largo", 9)
         assertTrue(resAlto.isFailure)
         assertEquals("La duración debe estar entre 1 y 8 horas.", resAlto.exceptionOrNull()?.message)
     }
 
     @Test
-    fun testVerificarQueElDestinoSeaObligatorio() {
+    fun testVerificarQueElDestinoSeaObligatorio() = runBlocking {
         val resultado = repository.crearSolicitud(
             equipoId = 1,
-            ambienteDestino = "   ", // Vacío / espacios
+            ambienteDestino = "   ",
             proposito = "Proposito válido largo",
             duracionHoras = 4
         )
@@ -227,7 +220,7 @@ class InMemoryPrestamoRepositoryTest {
     }
 
     @Test
-    fun testVerificarQueNoSeGuardeUnaSolicitudConDatosInvalidos() {
+    fun testVerificarQueNoSeGuardeUnaSolicitudConDatosInvalidos() = runBlocking {
         val inicialCount = repository.listarSolicitudes().size
         
         val resultado = repository.crearSolicitud(
@@ -258,7 +251,7 @@ class InMemoryPrestamoRepositoryTest {
 
     @Test
     fun testVerificarElComportamientoAlSeleccionarUnEquipoInvalido() {
-        val equipo = repository.obtenerEquipo(999) // ID inexistente
+        val equipo = repository.obtenerEquipo(999)
         assertNull(equipo)
     }
 }

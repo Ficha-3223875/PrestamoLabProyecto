@@ -71,7 +71,7 @@ class InMemoryPrestamoRepository : PrestamoRepository {
         return solicitudes.find { it.id == id }
     }
 
-    override fun crearSolicitud(
+    override suspend fun crearSolicitud(
         equipoId: Int,
         ambienteDestino: String,
         proposito: String,
@@ -163,7 +163,7 @@ class InMemoryPrestamoRepository : PrestamoRepository {
         return Result.success(solicitud)
     }
 
-    override fun cancelarSolicitud(
+    override suspend fun cancelarSolicitud(
         solicitudId: Int
     ): Result<Unit> {
 

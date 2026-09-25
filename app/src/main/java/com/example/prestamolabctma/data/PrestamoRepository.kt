@@ -13,14 +13,14 @@ interface PrestamoRepository {
 
     fun obtenerSolicitud(id: Int): SolicitudPrestamo?
 
-    fun crearSolicitud(
+    suspend fun crearSolicitud(
         equipoId: Int,
         ambienteDestino: String,
         proposito: String,
         duracionHoras: Int
     ): Result<SolicitudPrestamo>
 
-    fun cancelarSolicitud(
+    suspend fun cancelarSolicitud(
         solicitudId: Int
     ): Result<Unit>
 }
