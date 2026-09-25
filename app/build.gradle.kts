@@ -70,4 +70,6 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
     // 👇 Agrega esta dependencia para MockWebServer (Guía 8)
     testImplementation("com.squareup.okhttp3:mockwebserver:4.11.0")
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("androidx.compose.material:material-icons-extended:1.6.8")
 }
