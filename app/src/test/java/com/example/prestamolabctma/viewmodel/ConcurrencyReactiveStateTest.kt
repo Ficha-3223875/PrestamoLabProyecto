@@ -44,6 +44,9 @@ class ConcurrencyReactiveStateTest {
             duracionHoras: Int
         ): Result<SolicitudPrestamo> = Result.failure(IllegalStateException("Sin equipos"))
         override suspend fun cancelarSolicitud(solicitudId: Int): Result<Unit> = Result.failure(IllegalStateException("Sin solicitudes"))
+        override suspend fun sincronizarConServidor(): Result<Unit> = Result.success(Unit)
+        override suspend fun adjuntarEvidencia(solicitudId: Int, uriString: String): Result<Unit> = Result.success(Unit)
+        override suspend fun subirEvidenciaPendiente(solicitudId: Int): Result<Unit> = Result.success(Unit)
     }
 
     @Test

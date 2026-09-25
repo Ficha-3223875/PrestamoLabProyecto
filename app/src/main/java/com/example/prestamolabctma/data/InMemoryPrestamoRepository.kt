@@ -215,4 +215,38 @@ class InMemoryPrestamoRepository : PrestamoRepository {
 
         return Result.success(Unit)
     }
+
+    override suspend fun sincronizarConServidor(): Result<Unit> {
+        return Result.success(Unit)
+    }
+
+    override suspend fun adjuntarEvidencia(solicitudId: Int, uriString: String): Result<Unit> {
+        val solicitud = obtenerSolicitud(solicitudId)
+            ?: return Result.failure(IllegalArgumentException("Solicitud no encontrada."))
+
+        if (uriString.isBlank()) {
+            return Result.failure(IllegalArgumentException("URI de evidencia no válida."))
+        }
+
+        val idx = solicitudes.indexOfFirst { it.id == solicitudId }
+        if (idx != -1) {
+            solicitudes[idx] = solicitud.copy(evidenciaUri = uriString, estadoEvidencia = "Local")
+        }
+        return Result.success(Unit)
+    }
+
+    override suspend fun subirEvidenciaPendiente(solicitudId: Int): Result<Unit> {
+        val solicitud = obtenerSolicitud(solicitudId)
+            ?: return Result.failure(IllegalArgumentException("Solicitud no encontrada."))
+
+        if (solicitud.evidenciaUri.isNullOrBlank()) {
+            return Result.failure(IllegalArgumentException("No hay evidencia para subir."))
+        }
+
+        val idx = solicitudes.indexOfFirst { it.id == solicitudId }
+        if (idx != -1) {
+            solicitudes[idx] = solicitud.copy(estadoEvidencia = "Sincronizada")
+        }
+        return Result.success(Unit)
+    }
 }

@@ -4,16 +4,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -26,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.prestamolabctma.model.EstadoEquipo
+import com.example.prestamolabctma.viewmodel.EstadoOperacion
 import com.example.prestamolabctma.viewmodel.EstadoPantalla
 import com.example.prestamolabctma.viewmodel.PrestamoViewModel
 
@@ -36,13 +41,22 @@ fun CatalogoScreen(
     onEquipoClick: (Int) -> Unit,
     onMisSolicitudes: () -> Unit
 ) {
-    // Recolección consciente del ciclo de vida (Semana 7)
+    // Recolección consciente del ciclo de vida (Semana 7 y 8)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Catálogo de equipos") }
+                title = { Text("Catálogo de equipos") },
+                actions = {
+                    Button(
+                        onClick = { viewModel.sincronizarConServidor() },
+                        enabled = uiState.estadoOperacion !is EstadoOperacion.EnCurso,
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        Text("Sincronizar API")
+                    }
+                }
             )
         }
     ) { padding ->
@@ -53,13 +67,113 @@ fun CatalogoScreen(
                 .padding(padding)
         ) {
 
-            Button(
-                onClick = onMisSolicitudes,
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("Mis solicitudes")
+                Button(
+                    onClick = onMisSolicitudes,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Mis solicitudes")
+                }
+                OutlinedButton(
+                    onClick = { viewModel.verificarBluetooth() },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Bluetooth Estado")
+                }
+            }
+
+            if (uiState.bluetoothDispositivos.isNotEmpty() || uiState.bluetoothEstado.contains("Bluetooth")) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(text = "📡 Capacidad del Dispositivo - Bluetooth", style = MaterialTheme.typography.titleSmall)
+                        Text(text = "Estado: ${uiState.bluetoothEstado}", style = MaterialTheme.typography.bodyMedium)
+                        if (uiState.bluetoothDispositivos.isNotEmpty()) {
+                            Text(text = "Dispositivos vinculados:", style = MaterialTheme.typography.bodySmall)
+                            uiState.bluetoothDispositivos.forEach { disp ->
+                                Text(text = "• $disp", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- ESTADO DE ACTUALIZACIÓN DESDE API (Semana 8: Resiliencia y separación de contenido local) ---
+            when (val op = uiState.estadoOperacion) {
+                is EstadoOperacion.EnCurso -> {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            Text("Sincronizando catálogo con la API REST...", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+
+                is EstadoOperacion.Fallida -> {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = op.mensaje,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            OutlinedButton(
+                                onClick = { viewModel.sincronizarConServidor() },
+                                modifier = Modifier.padding(start = 8.dp)
+                            ) {
+                                Text("Reintentar")
+                            }
+                        }
+                    }
+                }
+
+                is EstadoOperacion.Exitosa -> {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = op.mensaje,
+                            modifier = Modifier.padding(10.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+
+                else -> {}
             }
 
             // --- FILTROS VISUALES PERSISTENTES CON DATASTORE ---

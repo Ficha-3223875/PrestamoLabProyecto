@@ -3,6 +3,8 @@ package com.example.prestamolabctma.data
 import com.example.prestamolabctma.data.local.BaseDatosLocal
 import com.example.prestamolabctma.data.local.Mappers.toDomain
 import com.example.prestamolabctma.data.local.SolicitudPrestamoEntity
+import com.example.prestamolabctma.data.remote.RemoteDataSource
+import com.example.prestamolabctma.data.remote.dto.toEntity
 import com.example.prestamolabctma.model.Equipo
 import com.example.prestamolabctma.model.EstadoEquipo
 import com.example.prestamolabctma.model.EstadoSolicitud
@@ -12,9 +14,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
-class RoomPrestamoRepository(private val db: BaseDatosLocal) : PrestamoRepository {
+class RoomPrestamoRepository(
+    private val db: BaseDatosLocal,
+    val remoteDataSource: RemoteDataSource = RemoteDataSource()
+) : PrestamoRepository {
 
-    // El DAO expone reactividad mediante Flow y Room/Helper notifica tras cada cambio
+    // El DAO expone reactividad mediante Flow y Room/Helper notifica tras cada cambio (Single Source of Truth)
     val equiposFlow: Flow<List<Equipo>> = db.cambiosNotifier.map {
         db.listarEquiposRaw().map { it.toDomain() }
     }
@@ -39,7 +44,7 @@ class RoomPrestamoRepository(private val db: BaseDatosLocal) : PrestamoRepositor
         return db.obtenerSolicitudRaw(id)?.toDomain()
     }
 
-    // Funciones suspend main-safe con Dispatchers.IO (Semana 7)
+    // Funciones suspend main-safe con Dispatchers.IO (Semana 7 & 8 & 9)
     override suspend fun crearSolicitud(
         equipoId: Int,
         ambienteDestino: String,
@@ -77,7 +82,7 @@ class RoomPrestamoRepository(private val db: BaseDatosLocal) : PrestamoRepositor
             return@withContext Result.failure(IllegalStateException("Ya existe una solicitud activa para este equipo."))
         }
 
-        // Crear entidad local persistente con campo de versión 2 (fechaRegistro)
+        // Crear entidad local persistente con campo de versión 3 (fechaRegistro, evidenciaUri, estadoEvidencia)
         val entity = SolicitudPrestamoEntity(
             id = 0,
             equipoId = equipoId,
@@ -85,7 +90,9 @@ class RoomPrestamoRepository(private val db: BaseDatosLocal) : PrestamoRepositor
             proposito = proposito.trim(),
             duracionHoras = duracionHoras,
             estado = "SOLICITADA",
-            fechaRegistro = "2026-09-24" // Esquema v2
+            fechaRegistro = "2026-09-25",
+            evidenciaUri = null,
+            estadoEvidencia = "Local"
         )
 
         val nuevoId = db.insertarSolicitudRaw(entity).toInt()
@@ -109,5 +116,59 @@ class RoomPrestamoRepository(private val db: BaseDatosLocal) : PrestamoRepositor
         db.actualizarEstadoEquipoRaw(id = solicitud.equipoId, nuevoEstado = "DISPONIBLE")
 
         Result.success(Unit)
+    }
+
+    override suspend fun sincronizarConServidor(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val equiposDto = remoteDataSource.obtenerEquiposRemotos()
+            val entidades = equiposDto.map { it.toEntity() }
+            db.reemplazarEquiposRaw(entidades)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Adjuntar evidencia fotográfica (Semana 9)
+    override suspend fun adjuntarEvidencia(solicitudId: Int, uriString: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val solicitud = obtenerSolicitud(solicitudId)
+            ?: return@withContext Result.failure(IllegalArgumentException("La solicitud no existe."))
+
+        if (uriString.isBlank()) {
+            return@withContext Result.failure(IllegalArgumentException("URI de evidencia no válida."))
+        }
+
+        if (uriString.contains("archivo_grande_excedido")) {
+            return@withContext Result.failure(IllegalArgumentException("El archivo de imagen excede el límite permitido de 10 MB."))
+        }
+
+        // Persistir la URI local String en Room sin guardar Bitmaps ni Base64 pesados
+        db.actualizarEvidenciaSolicitudRaw(solicitudId, uriString, "Local")
+
+        // Intentar subir a la API remota
+        subirEvidenciaPendiente(solicitudId)
+
+        Result.success(Unit)
+    }
+
+    override suspend fun subirEvidenciaPendiente(solicitudId: Int): Result<Unit> = withContext(Dispatchers.IO) {
+        val solicitud = obtenerSolicitud(solicitudId)
+            ?: return@withContext Result.failure(IllegalArgumentException("La solicitud no existe."))
+
+        val uri = solicitud.evidenciaUri
+            ?: return@withContext Result.failure(IllegalArgumentException("No hay evidencia para subir."))
+
+        db.actualizarEvidenciaSolicitudRaw(solicitudId, uri, "Subiendo")
+
+        val resultadoSubida = remoteDataSource.subirEvidenciaRemota(solicitudId, uri)
+
+        if (resultadoSubida.isSuccess) {
+            db.actualizarEvidenciaSolicitudRaw(solicitudId, uri, "Sincronizada")
+            Result.success(Unit)
+        } else {
+            // RESILIENCIA: Ante fallo de red, conserva la URI local intacta en Room y marca estado 'Fallida'
+            db.actualizarEvidenciaSolicitudRaw(solicitudId, uri, "Fallida")
+            Result.failure(resultadoSubida.exceptionOrNull() ?: Exception("Error al subir la evidencia."))
+        }
     }
 }

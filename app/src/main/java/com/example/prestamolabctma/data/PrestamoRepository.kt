@@ -23,4 +23,15 @@ interface PrestamoRepository {
     suspend fun cancelarSolicitud(
         solicitudId: Int
     ): Result<Unit>
+
+    suspend fun sincronizarConServidor(): Result<Unit>
+
+    suspend fun adjuntarEvidencia(
+        solicitudId: Int,
+        uriString: String
+    ): Result<Unit>
+
+    suspend fun subirEvidenciaPendiente(
+        solicitudId: Int
+    ): Result<Unit>
 }

@@ -74,6 +74,18 @@ class PrestamoViewModelTest {
             }
             return Result.success(Unit)
         }
+
+        override suspend fun sincronizarConServidor(): Result<Unit> {
+            return Result.success(Unit)
+        }
+
+        override suspend fun adjuntarEvidencia(solicitudId: Int, uriString: String): Result<Unit> {
+            return Result.success(Unit)
+        }
+
+        override suspend fun subirEvidenciaPendiente(solicitudId: Int): Result<Unit> {
+            return Result.success(Unit)
+        }
     }
 
     // --- GRUPO: Guardar / Doble Pulsación / Idempotencia en ViewModel ---

@@ -16,7 +16,19 @@ import kotlinx.coroutines.flow.asStateFlow
 
 // --- 1. ENTIDADES LOCALES (Mapeadores para no contaminar el dominio ni la UI) ---
 data class EquipoEntity(val id: Int, val nombre: String, val categoria: String, val descripcion: String, val estado: String)
-data class SolicitudPrestamoEntity(val id: Int, val equipoId: Int, val ambienteDestino: String, val proposito: String, val duracionHoras: Int, val estado: String, val fechaRegistro: String = "")
+
+data class SolicitudPrestamoEntity(
+    val id: Int,
+    val equipoId: Int,
+    val ambienteDestino: String,
+    val proposito: String,
+    val duracionHoras: Int,
+    val estado: String,
+    val fechaRegistro: String = "",
+    val evidenciaUri: String? = null,
+    val estadoEvidencia: String = "Local"
+)
+
 data class ReporteEntity(val id: String, val titulo: String)
 
 class BaseDatosLocal(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -24,8 +36,8 @@ class BaseDatosLocal(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     companion object {
         const val DATABASE_NAME = "prestamolab_reportactma.db"
         
-        // Versión del esquema para demostrar Migración 1 -> 2
-        const val DATABASE_VERSION = 2
+        // Versión del esquema para demostrar Migración 1 -> 2 -> 3 (Semana 9)
+        const val DATABASE_VERSION = 3
 
         // Tablas
         const val TABLA_EQUIPOS = "equipos"
@@ -42,7 +54,7 @@ class BaseDatosLocal(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        // ESQUEMA EN VERSIÓN 1 (Estructura base)
+        // ESQUEMA EN VERSIÓN 3
         db.execSQL("""
             CREATE TABLE $TABLA_EQUIPOS (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,7 +73,9 @@ class BaseDatosLocal(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 proposito TEXT,
                 duracionHoras INTEGER,
                 estado TEXT,
-                fechaRegistro TEXT DEFAULT ''
+                fechaRegistro TEXT DEFAULT '',
+                evidenciaUri TEXT DEFAULT NULL,
+                estadoEvidencia TEXT DEFAULT 'Local'
             )
         """.trimIndent())
 
@@ -77,9 +91,17 @@ class BaseDatosLocal(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // LOGICA DE MIGRACIÓN 1 -> 2 EXIGIDA POR LA GUÍA
-        if (oldVersion == 1 && newVersion == 2) {
-            db.execSQL("ALTER TABLE $TABLA_SOLICITUDES ADD COLUMN fechaRegistro TEXT DEFAULT ''")
+        // LOGICA DE MIGRACIÓN VERSIONADA EXIGIDA POR LA GUÍA
+        if (oldVersion < 2) {
+            try {
+                db.execSQL("ALTER TABLE $TABLA_SOLICITUDES ADD COLUMN fechaRegistro TEXT DEFAULT ''")
+            } catch (e: Exception) {}
+        }
+        if (oldVersion < 3) {
+            try {
+                db.execSQL("ALTER TABLE $TABLA_SOLICITUDES ADD COLUMN evidenciaUri TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE $TABLA_SOLICITUDES ADD COLUMN estadoEvidencia TEXT DEFAULT 'Local'")
+            } catch (e: Exception) {}
         }
     }
 
@@ -171,12 +193,36 @@ class BaseDatosLocal(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         notificarCambio()
     }
 
+    fun reemplazarEquiposRaw(nuevosEquipos: List<EquipoEntity>) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            for (eq in nuevosEquipos) {
+                val cv = ContentValues().apply {
+                    put("id", eq.id)
+                    put("nombre", eq.nombre)
+                    put("categoria", eq.categoria)
+                    put("descripcion", eq.descripcion)
+                    put("estado", eq.estado)
+                }
+                db.insertWithOnConflict(TABLA_EQUIPOS, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        notificarCambio()
+    }
+
     fun listarSolicitudesRaw(): List<SolicitudPrestamoEntity> {
         val lista = mutableListOf<SolicitudPrestamoEntity>()
         val db = readableDatabase
         val cursor = db.rawQuery("SELECT * FROM $TABLA_SOLICITUDES", null)
         if (cursor.moveToFirst()) {
             do {
+                val evidenciaUriCol = cursor.getColumnIndex("evidenciaUri")
+                val estadoEvidenciaCol = cursor.getColumnIndex("estadoEvidencia")
+
                 lista.add(SolicitudPrestamoEntity(
                     id = cursor.getInt(cursor.getColumnIndexOrThrow("id")),
                     equipoId = cursor.getInt(cursor.getColumnIndexOrThrow("equipoId")),
@@ -184,7 +230,9 @@ class BaseDatosLocal(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                     proposito = cursor.getString(cursor.getColumnIndexOrThrow("proposito")),
                     duracionHoras = cursor.getInt(cursor.getColumnIndexOrThrow("duracionHoras")),
                     estado = cursor.getString(cursor.getColumnIndexOrThrow("estado")),
-                    fechaRegistro = cursor.getString(cursor.getColumnIndexOrThrow("fechaRegistro"))
+                    fechaRegistro = cursor.getString(cursor.getColumnIndexOrThrow("fechaRegistro")),
+                    evidenciaUri = if (evidenciaUriCol != -1) cursor.getString(evidenciaUriCol) else null,
+                    estadoEvidencia = if (estadoEvidenciaCol != -1) cursor.getString(estadoEvidenciaCol) ?: "Local" else "Local"
                 ))
             } while (cursor.moveToNext())
         }
@@ -197,6 +245,9 @@ class BaseDatosLocal(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val cursor = db.rawQuery("SELECT * FROM $TABLA_SOLICITUDES WHERE id = ?", arrayOf(id.toString()))
         var entity: SolicitudPrestamoEntity? = null
         if (cursor.moveToFirst()) {
+            val evidenciaUriCol = cursor.getColumnIndex("evidenciaUri")
+            val estadoEvidenciaCol = cursor.getColumnIndex("estadoEvidencia")
+
             entity = SolicitudPrestamoEntity(
                 id = cursor.getInt(cursor.getColumnIndexOrThrow("id")),
                 equipoId = cursor.getInt(cursor.getColumnIndexOrThrow("equipoId")),
@@ -204,7 +255,9 @@ class BaseDatosLocal(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 proposito = cursor.getString(cursor.getColumnIndexOrThrow("proposito")),
                 duracionHoras = cursor.getInt(cursor.getColumnIndexOrThrow("duracionHoras")),
                 estado = cursor.getString(cursor.getColumnIndexOrThrow("estado")),
-                fechaRegistro = cursor.getString(cursor.getColumnIndexOrThrow("fechaRegistro"))
+                fechaRegistro = cursor.getString(cursor.getColumnIndexOrThrow("fechaRegistro")),
+                evidenciaUri = if (evidenciaUriCol != -1) cursor.getString(evidenciaUriCol) else null,
+                estadoEvidencia = if (estadoEvidenciaCol != -1) cursor.getString(estadoEvidenciaCol) ?: "Local" else "Local"
             )
         }
         cursor.close()
@@ -220,6 +273,8 @@ class BaseDatosLocal(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             put("duracionHoras", entity.duracionHoras)
             put("estado", entity.estado)
             put("fechaRegistro", entity.fechaRegistro)
+            put("evidenciaUri", entity.evidenciaUri)
+            put("estadoEvidencia", entity.estadoEvidencia)
         }
         val id = db.insert(TABLA_SOLICITUDES, null, cv)
         notificarCambio()
@@ -229,6 +284,16 @@ class BaseDatosLocal(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     fun actualizarEstadoSolicitudRaw(id: Int, nuevoEstado: String) {
         val db = writableDatabase
         val cv = ContentValues().apply { put("estado", nuevoEstado) }
+        db.update(TABLA_SOLICITUDES, cv, "id = ?", arrayOf(id.toString()))
+        notificarCambio()
+    }
+
+    fun actualizarEvidenciaSolicitudRaw(id: Int, uri: String?, estadoEvidencia: String) {
+        val db = writableDatabase
+        val cv = ContentValues().apply {
+            put("evidenciaUri", uri)
+            put("estadoEvidencia", estadoEvidencia)
+        }
         db.update(TABLA_SOLICITUDES, cv, "id = ?", arrayOf(id.toString()))
         notificarCambio()
     }
@@ -276,7 +341,9 @@ object Mappers {
         ambienteDestino = ambienteDestino,
         proposito = proposito,
         duracionHoras = duracionHoras,
-        estado = EstadoSolicitud.valueOf(estado)
+        estado = EstadoSolicitud.valueOf(estado),
+        evidenciaUri = evidenciaUri,
+        estadoEvidencia = estadoEvidencia
     )
 
     fun ReporteEntity.toDomain() = Reporte(
