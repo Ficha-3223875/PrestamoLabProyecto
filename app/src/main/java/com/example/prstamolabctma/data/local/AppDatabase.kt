@@ -10,11 +10,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-@Database(entities = [EquipoEntity::class, SolicitudEntity::class], version = 2, exportSchema = false)
+@Database(entities = [EquipoEntity::class, SolicitudEntity::class, EvidenciaEntity::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun equipoDao(): EquipoDao
     abstract fun solicitudDao(): SolicitudDao
+    abstract fun evidenciaDao(): EvidenciaDao
 
     companion object {
         @Volatile
@@ -26,6 +27,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `evidencias` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `solicitudId` INTEGER NOT NULL, `uri` TEXT NOT NULL, `tipoMime` TEXT NOT NULL, `tamanoBytes` INTEGER NOT NULL, `estado` TEXT NOT NULL, `fechaCreacion` INTEGER NOT NULL)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -33,7 +42,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "prestamolab_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {

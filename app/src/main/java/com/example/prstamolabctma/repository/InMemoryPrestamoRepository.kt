@@ -4,6 +4,7 @@ import com.example.prstamolabctma.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 
 class InMemoryPrestamoRepository : PrestamoRepository {
     private val equipos = mutableListOf(
@@ -13,13 +14,16 @@ class InMemoryPrestamoRepository : PrestamoRepository {
     )
 
     private val solicitudes = mutableListOf<SolicitudPrestamo>()
+    private val evidencias = mutableListOf<Evidencia>()
 
     private val _equiposFlow = MutableStateFlow<List<Equipo>>(equipos.toList())
     private val _solicitudesFlow = MutableStateFlow<List<SolicitudPrestamo>>(solicitudes.toList())
+    private val _evidenciasFlow = MutableStateFlow<List<Evidencia>>(evidencias.toList())
 
     private fun notifyChanges() {
         _equiposFlow.value = equipos.toList()
         _solicitudesFlow.value = solicitudes.toList()
+        _evidenciasFlow.value = evidencias.toList()
     }
 
     override fun obtenerEquiposFlow(): Flow<List<Equipo>> = _equiposFlow.asStateFlow()
@@ -73,6 +77,31 @@ class InMemoryPrestamoRepository : PrestamoRepository {
     }
 
     override suspend fun refrescarDatos(): Result<Unit> {
+        return Result.success(Unit)
+    }
+
+    override fun obtenerEvidenciasPorSolicitudFlow(solicitudId: Int): Flow<List<Evidencia>> {
+        return _evidenciasFlow.map { list -> list.filter { it.solicitudId == solicitudId } }
+    }
+
+    override suspend fun adjuntarEvidencia(evidencia: Evidencia): Result<Unit> {
+        evidencias.add(evidencia)
+        notifyChanges()
+        return Result.success(Unit)
+    }
+
+    override suspend fun eliminarEvidencia(id: Int): Result<Unit> {
+        evidencias.removeAll { it.id == id }
+        notifyChanges()
+        return Result.success(Unit)
+    }
+
+    override suspend fun reintentarSubidaEvidencia(id: Int): Result<Unit> {
+        val index = evidencias.indexOfFirst { it.id == id }
+        if (index != -1) {
+            evidencias[index] = evidencias[index].copy(estado = EstadoEvidencia.SINCRONIZADA)
+            notifyChanges()
+        }
         return Result.success(Unit)
     }
 }

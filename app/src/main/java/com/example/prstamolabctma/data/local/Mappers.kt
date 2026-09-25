@@ -3,7 +3,9 @@ package com.example.prstamolabctma.data.local
 import com.example.prstamolabctma.model.CategoriaEquipo
 import com.example.prstamolabctma.model.Equipo
 import com.example.prstamolabctma.model.EstadoEquipo
+import com.example.prstamolabctma.model.EstadoEvidencia
 import com.example.prstamolabctma.model.EstadoSolicitud
+import com.example.prstamolabctma.model.Evidencia
 import com.example.prstamolabctma.model.SolicitudPrestamo
 
 fun EquipoEntity.toDomain(): Equipo {
@@ -42,6 +44,30 @@ fun SolicitudPrestamo.toEntity(fechaCreacion: Long = System.currentTimeMillis())
         ambienteDestino = ambienteDestino,
         proposito = proposito,
         duracionHoras = duracionHoras,
+        estado = estado.name,
+        fechaCreacion = fechaCreacion
+    )
+}
+
+fun EvidenciaEntity.toDomain(): Evidencia {
+    return Evidencia(
+        id = id,
+        solicitudId = solicitudId,
+        uri = uri,
+        tipoMime = tipoMime,
+        tamanoBytes = tamanoBytes,
+        estado = runCatching { EstadoEvidencia.valueOf(estado) }.getOrDefault(EstadoEvidencia.LOCAL),
+        fechaCreacion = fechaCreacion
+    )
+}
+
+fun Evidencia.toEntity(): EvidenciaEntity {
+    return EvidenciaEntity(
+        id = id,
+        solicitudId = solicitudId,
+        uri = uri,
+        tipoMime = tipoMime,
+        tamanoBytes = tamanoBytes,
         estado = estado.name,
         fechaCreacion = fechaCreacion
     )

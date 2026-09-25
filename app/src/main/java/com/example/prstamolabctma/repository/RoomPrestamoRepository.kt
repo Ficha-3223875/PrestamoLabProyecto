@@ -1,6 +1,7 @@
 package com.example.prstamolabctma.repository
 
 import com.example.prstamolabctma.data.local.EquipoDao
+import com.example.prstamolabctma.data.local.EvidenciaDao
 import com.example.prstamolabctma.data.local.SolicitudDao
 import com.example.prstamolabctma.data.local.toDomain
 import com.example.prstamolabctma.data.local.toEntity
@@ -9,11 +10,14 @@ import com.example.prstamolabctma.data.remote.toDto
 import com.example.prstamolabctma.data.remote.toEntity
 import com.example.prstamolabctma.model.Equipo
 import com.example.prstamolabctma.model.EstadoEquipo
+import com.example.prstamolabctma.model.EstadoEvidencia
 import com.example.prstamolabctma.model.EstadoSolicitud
+import com.example.prstamolabctma.model.Evidencia
 import com.example.prstamolabctma.model.SolicitudPrestamo
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -21,6 +25,7 @@ import kotlinx.coroutines.withContext
 class RoomPrestamoRepository(
     private val equipoDao: EquipoDao,
     private val solicitudDao: SolicitudDao,
+    private val evidenciaDao: EvidenciaDao? = null,
     private val apiService: PrestamoApiService? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : PrestamoRepository {
@@ -68,13 +73,11 @@ class RoomPrestamoRepository(
             }
             Result.success(Unit)
         } catch (e: Exception) {
-            // En caso de fallo de red, se retorna Failure, conservando intactos los datos de Room
             Result.failure(e)
         }
     }
 
     override suspend fun crearSolicitud(solicitud: SolicitudPrestamo): Result<Unit> = withContext(ioDispatcher) {
-        // Validaciones de negocio
         if (solicitud.ambienteDestino.isBlank()) {
             return@withContext Result.failure(Exception("El destino es obligatorio"))
         }
@@ -85,7 +88,6 @@ class RoomPrestamoRepository(
             return@withContext Result.failure(Exception("La duración debe estar entre 1 y 8 horas"))
         }
 
-        // Verificar si ya existe una solicitud activa para este equipo
         val conteoActivas = solicitudDao.countSolicitudesActivasPorEquipo(
             equipoId = solicitud.equipoId,
             estado = EstadoSolicitud.SOLICITADA.name
@@ -118,6 +120,58 @@ class RoomPrestamoRepository(
             Result.success(Unit)
         } else {
             Result.failure(Exception("No se puede cancelar"))
+        }
+    }
+
+    override fun obtenerEvidenciasPorSolicitudFlow(solicitudId: Int): Flow<List<Evidencia>> {
+        val dao = evidenciaDao ?: return flowOf(emptyList())
+        return dao.getEvidenciasPorSolicitudFlow(solicitudId)
+            .map { entities -> entities.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+    }
+
+    override suspend fun adjuntarEvidencia(evidencia: Evidencia): Result<Unit> = withContext(ioDispatcher) {
+        val dao = evidenciaDao ?: return@withContext Result.success(Unit)
+
+        // 1. Guardar primero con estado LOCAL / SUBIENDO
+        val idGenerado = dao.insertEvidencia(evidencia.copy(estado = EstadoEvidencia.SUBIENDO).toEntity())
+        val idFinal = if (evidencia.id == 0) idGenerado.toInt() else evidencia.id
+
+        // 2. Intentar sincronización remota si hay servicio de red
+        return@withContext try {
+            if (apiService != null) {
+                // Simulación de envío remoto por HTTPS
+                dao.updateEstadoEvidencia(idFinal, EstadoEvidencia.SINCRONIZADA.name)
+            } else {
+                dao.updateEstadoEvidencia(idFinal, EstadoEvidencia.LOCAL.name)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            // En caso de fallo de red, se conserva la evidencia localmente con estado FALLIDA
+            dao.updateEstadoEvidencia(idFinal, EstadoEvidencia.FALLIDA.name)
+            Result.failure(Exception("Error de red al sincronizar evidencia. Se conservó copia local.", e))
+        }
+    }
+
+    override suspend fun eliminarEvidencia(id: Int): Result<Unit> = withContext(ioDispatcher) {
+        val dao = evidenciaDao ?: return@withContext Result.success(Unit)
+        dao.deleteEvidencia(id)
+        Result.success(Unit)
+    }
+
+    override suspend fun reintentarSubidaEvidencia(id: Int): Result<Unit> = withContext(ioDispatcher) {
+        val dao = evidenciaDao ?: return@withContext Result.success(Unit)
+        dao.updateEstadoEvidencia(id, EstadoEvidencia.SUBIENDO.name)
+        return@withContext try {
+            if (apiService != null) {
+                dao.updateEstadoEvidencia(id, EstadoEvidencia.SINCRONIZADA.name)
+            } else {
+                dao.updateEstadoEvidencia(id, EstadoEvidencia.LOCAL.name)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            dao.updateEstadoEvidencia(id, EstadoEvidencia.FALLIDA.name)
+            Result.failure(e)
         }
     }
 }
