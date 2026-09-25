@@ -4,6 +4,13 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
+        <DropdownSelection timestamp="2026-09-25T11:36:31.740228600Z">
+          <Target type="DEFAULT_BOOT">
+            <handle>
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\USUARIO\.android\avd\Pixel_7.avd" />
+            </handle>
+          </Target>
+        </DropdownSelection>
         <DialogSelection />
       </SelectionState>
       <SelectionState runConfigName="androidTest">
@@ -23,6 +30,17 @@
         <DialogSelection />
       </SelectionState>
       <SelectionState runConfigName="CatalogoUiTest">
+        <option name="selectionMode" value="DROPDOWN" />
+        <DropdownSelection timestamp="2026-09-24T18:04:22.973338500Z">
+          <Target type="DEFAULT_BOOT">
+            <handle>
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\USUARIO\.android\avd\Pixel_7_2.avd" />
+            </handle>
+          </Target>
+        </DropdownSelection>
+        <DialogSelection />
+      </SelectionState>
+      <SelectionState runConfigName="verificar_tituloCatalogo_seMuestraEnPantalla()">
         <option name="selectionMode" value="DROPDOWN" />
         <DropdownSelection timestamp="2026-09-24T18:04:22.973338500Z">
           <Target type="DEFAULT_BOOT">

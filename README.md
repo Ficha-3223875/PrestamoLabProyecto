@@ -1,60 +1,112 @@
 # PréstamoLab CTMA
 
-Aplicación móvil Android para gestionar solicitudes de préstamo de equipos de formación, permitiendo consultar la disponibilidad, registrar solicitudes, validar reglas de negocio y consultar o cancelar préstamos.
+Aplicación móvil Android desarrollada en **Jetpack Compose** para la gestión integral de préstamos de equipos y herramientas de formación del CTMA.
+
+El proyecto implementa una arquitectura robusta por capas, persistencia local con **Room**, flujos reactivos mediante **Corrutinas y Flow**, sincronización preparada para servicios remotos mediante **Retrofit**, y capacidades avanzadas del dispositivo como **Photo Picker** y **geolocalización GPS**.
 
 ---
 
 ## 📌 Product Goal
 
-Mejorar la trazabilidad y consulta de préstamos de recursos de formación mediante una experiencia móvil Android, con validaciones y pruebas reproducibles.
+Facilitar la consulta, solicitud, préstamo, seguimiento y devolución trazable de equipos y herramientas de formación del CTMA mediante una aplicación móvil Android, con una experiencia segura, verificable y preparada para operar con persistencia local y sincronización asíncrona.
 
 ---
 
-## 👥 Usuarios
+## 👥 Roles de Usuario
 
-- **Aprendiz:** consulta el catálogo y solicita préstamos.
-- **Instructor:** valida evidencias y observa el proceso.
-- **Gestor simulado:** representa cambios de estado durante las pruebas.
+### Aprendiz
 
----
+- Consulta el catálogo de equipos.
+- Consulta el detalle de los equipos.
+- Solicita préstamos.
+- Adjunta evidencia fotográfica.
+- Adjunta ubicación GPS.
+- Gestiona sus solicitudes de préstamo.
 
-## 🎯 Alcance del primer incremento
+### Instructor / Gestor
 
-El primer incremento contempla:
-
-- Consultar catálogo de equipos.
-- Ver detalle de un equipo.
-- Registrar una solicitud con destino, propósito y duración.
-- Validar reglas de negocio.
-- Validar disponibilidad del equipo.
-- Evitar duplicación por doble pulsación.
-- Consultar las solicitudes realizadas.
-- Consultar el detalle de una solicitud.
-- Cancelar solicitudes en estado `SOLICITADA`.
-- Actualizar la disponibilidad del equipo.
-- Mantener los datos mediante un repositorio simulado en memoria.
+- Valida procesos.
+- Supervisa la trazabilidad.
+- Observa los cambios de estado de los recursos.
 
 ---
 
-## 🛠️ Tecnologías
+## 🎯 Evolución por Incrementos
 
-- **Kotlin**
-- **Jetpack Compose**
-- **Material 3**
-- **ViewModel**
-- **StateFlow**
-- **Repository Pattern**
-- **Repositorio InMemory**
-- **Navigation Compose**
-- **Git**
-- **GitHub**
-- **Android Studio**
+### Semana 5 — v0.2.0
+
+Consolidación de la arquitectura base:
+
+- Jetpack Compose.
+- ViewModel.
+- `UiState` / `StateFlow`.
+- Repositorio en memoria (`InMemory`).
+- Navegación segura.
+
+### Semana 6 — v0.3.0
+
+Incorporación de persistencia local:
+
+- Room Database.
+- Entities.
+- DAOs.
+- Relaciones.
+- Fuente local canónica.
+- Estructuración formal bajo Scrum.
+
+### Semana 7 — v0.4.0
+
+Implementación de operaciones asíncronas y reactivas:
+
+- Kotlin Coroutines.
+- Funciones `suspend`.
+- `Flow`.
+- `StateFlow`.
+- Manejo de excepciones.
+- Estados `Loading`, `Content`, `Empty` y `Error`.
+- `collectAsStateWithLifecycle()`.
+
+### Semana 8 — v0.5.0
+
+Integración de servicios remotos:
+
+- Retrofit.
+- OkHttp.
+- DTOs.
+- Mapeo de datos.
+- JUnit.
+- Coroutines Test.
+
+### Semana 9 — v0.6.0
+
+Integración de capacidades del dispositivo:
+
+- Photo Picker.
+- `FusedLocationProviderClient`.
+- Geolocalización GPS.
+- Persistencia segura de URIs.
+- Notificaciones contextuales.
+- Pruebas instrumentadas.
 
 ---
 
-## 🏗️ Arquitectura del proyecto
+## 🛠️ Tecnologías y Arquitectura
 
-El proyecto está organizado utilizando una separación por capas para mantener la interfaz, la lógica de presentación y los datos desacoplados.
+- **Lenguaje:** Kotlin (Toolchain 17)
+- **UI:** Jetpack Compose
+- **Diseño:** Material 3
+- **Carga de imágenes:** Coil
+- **Arquitectura:** MVVM (Model-View-ViewModel)
+- **Patrón:** Flujo Unidireccional de Datos (UDF)
+- **Persistencia:** Room Database
+- **Preferencias:** DataStore
+- **Concurrencia:** Kotlin Coroutines
+- **Flujos reactivos:** Flow / StateFlow
+- **Red:** Retrofit / OkHttp
+- **Control de versiones:** Git / GitHub
+- **CI:** GitHub Actions
+
+### Estructura del proyecto
 
 ```text
 com.example.prstamolabctma/
@@ -65,417 +117,323 @@ com.example.prstamolabctma/
 │   └── Estados.kt
 │
 ├── data/
+│   ├── local/
+│   │   ├── Entities
+│   │   ├── DAOs
+│   │   └── RoomDatabase
+│   │
 │   └── repository/
 │       ├── PrestamoRepository.kt
-│       └── InMemoryPrestamoRepository.kt
+│       └── RoomPrestamoRepository.kt
 │
 ├── viewmodel/
-│   └── PrestamoViewModel.kt
+│   ├── PrestamoViewModel.kt
+│   └── PrestamoViewModelFactory.kt
 │
 ├── ui/
 │   ├── catalogo/
-│   │   └── CatalogoScreen.kt
-│   │
 │   ├── equipo/
-│   │   └── EquipoScreen.kt
-│   │
 │   ├── solicitud/
-│   │   └── SolicitudScreen.kt
-│   │
-│   └── misprestamos/
-│       ├── MisPrestamosScreen.kt
-│       └── SolicitudDetalleScreen.kt
+│   ├── misprestamos/
+│   └── common/
+│       ├── EvidenciaUbicacionSection
+│       └── StateRenderers
+│
+├── util/
+│   └── NotificationHelper.kt
 │
 └── navigation/
     └── AppNavigation.kt
-````
-Capas
+```
 
-Model
+# 📏 Reglas de Negocio Principales
 
-Contiene las clases principales del dominio y los estados utilizados por la aplicación.
+### Solo se puede solicitar un equipo que se encuentre en estado DISPONIBLE.
+- El ambiente o destino del préstamo es obligatorio.
+- El propósito del préstamo debe tener una longitud estrictamente entre 10 y 180 caracteres.
+- La duración del préstamo debe estar comprendida entre 1 y 8 horas.
+- Se previene la creación de solicitudes duplicadas mediante control de doble pulsación.
+- Al crear una solicitud, su estado inicial es SOLICITADA y el equipo pasa a RESERVADO.
+- Una solicitud en estado SOLICITADA puede ser cancelada, lo que retorna el equipo a estado DISPONIBLE.
+- Las evidencias fotográficas se copian al almacenamiento interno de la aplicación para garantizar persistencia de lectura mediante URIs seguras gestionadas en Room.
 
-Data / Repository
+# 📖 Respuestas a las Preguntas de Sustentación
 
-Contiene el contrato del repositorio y su implementación en memoria.
+### 1. Abra una HU y muestre un criterio de aceptación; siga la trazabilidad hasta el código y la prueba que lo valida.
 
-ViewModel
-
-Contiene la lógica de presentación, las validaciones y expone el estado mediante StateFlow.
-
-UI
-
-Contiene las pantallas desarrolladas con Jetpack Compose.
-
-Navigation
-
-Controla las rutas de navegación y el paso de identificadores entre pantallas.
-
-# 📏 Reglas de negocio
-
-La aplicación implementa las siguientes reglas:
-
-El ambiente o destino es obligatorio.
-El propósito debe tener entre 10 y 180 caracteres.
-La duración debe estar entre 1 y 8 horas.
-El equipo debe estar disponible para poder solicitarlo.
-No se deben crear solicitudes duplicadas por doble pulsación.
-Una solicitud creada inicia en estado SOLICITADA.
-Al crear una solicitud, el equipo pasa a estado RESERVADO.
-Una solicitud SOLICITADA puede ser cancelada.
-Al cancelar una solicitud, esta pasa a CANCELADA.
-Al cancelar una solicitud, el equipo vuelve a estado DISPONIBLE.
-Los identificadores inexistentes deben manejarse sin cerrar abruptamente la aplicación.
-
-# 📖 Historias de Usuario
-HU-01 — Consultar catálogo de equipos
-
-Como aprendiz, quiero ver un catálogo de equipos con su disponibilidad para saber qué puedo solicitar.
-
-Criterio de aceptación:
-
-Al abrir el catálogo, se muestran el nombre, categoría y estado de cada equipo.
-
-HU-02 — Registrar solicitud de préstamo
-
-Como aprendiz, quiero registrar una solicitud con destino, propósito y duración para utilizar un equipo en prácticas.
+HU seleccionada: HU-02 — Registrar solicitud de préstamo.
 
 Criterio de aceptación:
 
 Si los datos son válidos, se crea una sola solicitud en estado SOLICITADA y el equipo pasa a RESERVADO.
 
-HU-03 — Cancelar solicitud
+Trazabilidad al código:
 
-Como aprendiz, quiero cancelar una solicitud en estado SOLICITADA para liberar el equipo.
+Se implementa en PrestamoViewModel.kt mediante la función de validación y las operaciones sobre RoomPrestamoRepository.kt, actualizando el estado del equipo en la base de datos local Room.
 
-Criterio de aceptación:
+Trazabilidad a la prueba:
 
-Al cancelar, la solicitud pasa a CANCELADA y el equipo vuelve a DISPONIBLE.
+Se valida mediante pruebas unitarias de repositorio y pruebas de flujos asíncronos con kotlinx-coroutines-test, verificando que el estado inicial obtenido sea coherente.
 
-HU-04 — Validar propósito mínimo
+### 2. Explique por qué Room se considera fuente local canónica en su solución.
 
-Como aprendiz, quiero que el sistema me avise si escribo un propósito demasiado corto para asegurar claridad.
+Room se establece como la fuente local canónica porque centraliza todas las operaciones de persistencia transaccional mediante un esquema relacional estructurado, utilizando entidades como EquipmentEntity y LoanEntity.
 
-Criterio de aceptación:
+Esto permite que la información no dependa de la memoria volátil del ViewModel y que los datos puedan mantenerse ante cierres de la aplicación o cambios en el ciclo de vida.
 
-Si el propósito tiene menos de 10 caracteres, no se guarda y aparece un mensaje específico.
+### 3. ¿Qué diferencia existe entre Flow y StateFlow en el contexto del ViewModel?
+   Flow
 
-HU-05 — Evitar duplicación por doble pulsación
+Flow es un flujo de datos asíncrono en frío (cold stream) que emite valores bajo demanda cada vez que un colector se suscribe a él.
 
-Como aprendiz, quiero que el sistema ignore pulsaciones repetidas para no generar solicitudes duplicadas.
+StateFlow
 
-Criterio de aceptación:
+StateFlow es un flujo en caliente (hot stream) que mantiene un estado actual retenido en memoria.
 
-Al presionar dos veces el botón de guardar, solo se crea una solicitud.
+En el ViewModel se utiliza StateFlow<UiState> porque la interfaz necesita conocer inmediatamente el último estado disponible, por ejemplo:
 
-HU-06 — Controlar duración máxima
+Loading
+Content
+Empty
+Error
 
-Como aprendiz, quiero que el sistema valide la duración del préstamo para evitar tiempos excesivos.
+La interfaz observa estos cambios mediante:
 
-Criterio de aceptación:
+collectAsStateWithLifecycle()
 
-Si la duración supera el límite definido, aparece un mensaje y no se guarda la solicitud.
+### 4. Muestre un caso de error de red y explique cómo se representa en UiState.
 
-# ⚠️ Matriz de Riesgos
+Cuando ocurre un fallo de conectividad o un error HTTP, por ejemplo 404 o 500, durante una operación con Retrofit, el error puede ser capturado y el ViewModel puede actualizar el estado.
 
-| Riesgo | Descripción | Probabilidad | Impacto | Mitigación |
-|---|---|---|---|---|
-| **Duplicación de solicitudes** | El usuario pulsa dos veces el botón y se crean solicitudes duplicadas. | Alta | Medio | Implementar control de doble clic y validación en repositorio. |
-| **Propósito demasiado corto** | El aprendiz ingresa un propósito con menos de 10 caracteres. | Media | Bajo | Validar longitud mínima y mostrar mensaje de error. |
-| **Duración fuera de rango** | Se ingresan tiempos de préstamo superiores al límite permitido. | Media | Alto | Validar duración máxima y rechazar solicitudes inválidas. |
-| **Equipo no disponible** | Se intenta solicitar un equipo que no se encuentra disponible. | Alta | Alto | Validar disponibilidad antes de crear la solicitud. |
-| **ID inexistente** | El sistema recibe un ID de equipo o solicitud que no existe. | Baja | Alto | Manejar navegación segura y mostrar mensaje de equipo o solicitud no encontrada. |
-| **Accesibilidad limitada** | Usuarios con dificultades visuales pueden tener problemas para utilizar la aplicación. | Media | Medio | Usar textos claros, etiquetas y acciones visibles. |
+Por ejemplo:
 
-🎯 Alcance funcional mínimo del incremento
-1. Consultar catálogo
+UiState.Error(
+message = "Error de sincronización con el servidor"
+)
 
-Mostrar un catálogo de equipos con nombre, categoría y disponibilidad.
+La interfaz detecta el estado Error mediante el manejo correspondiente de UiState y renderiza el componente visual de error.
 
-2. Ver detalle de equipo
+### 5. Seleccione un test automatizado y explique Arrange, Act y Assert.
+   Arrange — Preparar
 
-Abrir el detalle de un equipo utilizando equipoId como argumento de navegación.
+Se inicializan las dependencias necesarias para la prueba, como una instancia del repositorio en memoria o el ViewModel con datos simulados.
 
-3. Registrar solicitud
+Act — Actuar
 
-Permitir registrar una solicitud de préstamo para un equipo disponible.
+Se ejecuta la acción que se desea probar.
 
-4. Ingresar datos obligatorios
+Por ejemplo:
 
-Solicitar:
+viewModel.crearSolicitud(...)
+Assert — Afirmar
 
-Ambiente o destino.
-Propósito.
-Duración estimada.
-5. Validar reglas de negocio
+Se valida mediante aserciones que el resultado obtenido coincida con el resultado esperado.
 
-Verificar que los datos cumplan con las restricciones antes de guardar.
+Por ejemplo:
 
-6. Mis solicitudes
+assertEquals(
+expectedState,
+currentState
+)
 
-Mostrar la lista de solicitudes creadas y permitir consultar el detalle de cada una.
+### 6. ¿Qué parte del incremento fue desarrollada mediante TDD y qué aprendieron?
 
-7. Evitar duplicación
+El desarrollo de las reglas de negocio relacionadas con la validación del propósito y la duración de los préstamos se estructuró bajo el ciclo:
 
-Prevenir solicitudes duplicadas por doble pulsación del botón de creación.
+Red → Green → Refactor
 
-8. Actualizar disponibilidad
+Primero se creó la prueba que representaba el comportamiento esperado. Posteriormente se implementó el código necesario para que la prueba pasara y finalmente se realizó la refactorización.
 
-Cambiar el estado del equipo de acuerdo con la solicitud creada o cancelada.
+El aprendizaje principal fue que escribir primero las pruebas ayuda a diseñar funciones de validación más limpias, específicas y fáciles de comprobar.
 
-9. Controlar IDs inexistentes
+### 7. Muestre un defecto encontrado, su confirmación y la regresión seleccionada.
+   Defecto identificado
 
-Manejar identificadores inválidos sin que la aplicación se cierre abruptamente.
+BUG-01: pérdida de permisos de lectura sobre las URIs temporales proporcionadas por Photo Picker después de reiniciar la aplicación.
 
-10. Cancelar solicitud
+El problema impedía que Coil pudiera renderizar correctamente una imagen previamente seleccionada.
 
-Permitir cancelar una solicitud que todavía esté en estado SOLICITADA.
+Confirmación y corrección
 
-11. Repositorio simulado
+Se implementó una función auxiliar:
 
-Mantener los datos durante la ejecución mediante un repositorio InMemory.
+guardarImagenEnAlmacenamientoInterno
 
-12. Accesibilidad básica
+Esta función copia físicamente el archivo seleccionado al directorio interno de la aplicación.
 
-Presentar mensajes claros y no depender únicamente del color para comunicar información.
+De esta manera, la aplicación puede mantener una referencia persistente a la imagen.
 
-# 🔄 Flujo principal de la aplicación
-Catálogo
-   │
-   ├── Ver detalle de equipo
-   │       │
-   │       └── Solicitar préstamo
-   │               │
-   │               ├── Validar datos
-   │               │
-   │               ├── Validar disponibilidad
-   │               │
-   │               └── Crear solicitud
-   │                       │
-   │                       ├── Solicitud: SOLICITADA
-   │                       └── Equipo: RESERVADO
-   │
-   └── Mis préstamos
-           │
-           └── Detalle de solicitud
-                   │
-                   └── Cancelar solicitud
-                           │
-                           ├── Solicitud: CANCELADA
-                           └── Equipo: DISPONIBLE
-
-# 📊 Estados del sistema
-
-## Estados de los equipos
-
-| Estado | Descripción |
-|---|---|
-| `DISPONIBLE` | El equipo puede ser solicitado. |
-| `RESERVADO` | El equipo tiene una solicitud activa. |
-| `PRESTADO` | El equipo se encuentra actualmente prestado. |
-
-## Estados de las solicitudes
-
-| Estado | Descripción |
-|---|---|
-| `SOLICITADA` | La solicitud fue creada y está pendiente del proceso correspondiente. |
-| `CANCELADA` | La solicitud fue cancelada por el usuario. |
-
-# 🧪 Pruebas y casos de prueba
-
-Las pruebas se enfocan principalmente en validar las reglas de negocio y los flujos principales de la aplicación.
-
-| ID | Caso de prueba | Resultado esperado |
-|---|---|---|
-| **TC-01** | Consultar catálogo | Se muestran los equipos con nombre, categoría y estado. |
-| **TC-02** | Consultar detalle de equipo | Se muestra correctamente la información del equipo seleccionado. |
-| **TC-03** | Registrar solicitud válida | Se crea una solicitud en estado `SOLICITADA`. |
-| **TC-04** | Ambiente o destino vacío | No se crea la solicitud y se muestra un mensaje de validación. |
-| **TC-05** | Propósito menor a 10 caracteres | No se crea la solicitud y se informa el error. |
-| **TC-06** | Propósito válido | El sistema permite continuar con la solicitud. |
-| **TC-07** | Duración menor al mínimo | No se crea la solicitud. |
-| **TC-08** | Duración mayor al máximo | No se crea la solicitud. |
-| **TC-09** | Duración válida | El sistema permite crear la solicitud. |
-| **TC-10** | Solicitar equipo no disponible | El sistema rechaza la solicitud. |
-| **TC-11** | Doble pulsación en Crear solicitud | Solo se crea una solicitud. |
-| **TC-12** | Consultar Mis préstamos | Se muestran las solicitudes realizadas. |
-| **TC-13** | Consultar detalle de solicitud | Se muestra la información de la solicitud. |
-| **TC-14** | Cancelar solicitud `SOLICITADA` | La solicitud pasa a `CANCELADA`. |
-| **TC-15** | Cancelar solicitud | El equipo vuelve a `DISPONIBLE`. |
-| **TC-16** | Equipo inexistente | La aplicación controla el ID sin cerrarse. |
-| **TC-17** | Solicitud inexistente | La aplicación controla el ID sin cerrarse. |
-| **TC-18** | Volver al catálogo | El usuario puede regresar correctamente al catálogo. |
-
-## Durante las pruebas manuales se verificaron los principales flujos de la aplicación:
-
-El catálogo muestra los equipos disponibles.
-Se puede acceder al detalle de un equipo.
-Se puede registrar una solicitud con datos válidos.
-Los campos obligatorios son validados.
-El propósito se valida entre 10 y 180 caracteres.
-La duración se valida entre 1 y 8 horas.
-El sistema permite registrar más de una solicitud para equipos disponibles.
-Las solicitudes aparecen en Mis préstamos.
-Las solicitudes pueden consultarse individualmente.
-Una solicitud puede ser cancelada cuando corresponde.
-El equipo cambia de disponibilidad después de crear o cancelar una solicitud.
-Se controla la duplicación por doble pulsación.
-Los IDs inválidos son controlados por la navegación.
-
-# 🧭 Navegación
-
-La aplicación utiliza Navigation Compose para controlar las diferentes pantallas.
-
-Rutas principales
-catalogo
-   │
-   ├── equipo/{equipoId}
-   │       │
-   │       └── solicitud/{equipoId}
-   │
-   └── misprestamos
-           │
-           └── solicitudDetalle/{solicitudId}
-
-Los identificadores equipoId y solicitudId se envían como argumentos de navegación.
-
-# 🧠 Manejo del estado
-
-El PrestamoViewModel utiliza MutableStateFlow internamente y expone un StateFlow de solo lectura para la interfaz.
-
-El estado de la UI contiene:
-
-PrestamoUiState
-├── equipos
-├── solicitudes
-├── mensaje
-└── guardando
-
-Esto permite que las pantallas reaccionen a los cambios sin modificar directamente el repositorio.
-
-# 🗄️ Repositorio
-
-La aplicación utiliza un repositorio en memoria:
-
-PrestamoRepository
-        │
-        └── InMemoryPrestamoRepository
-
-El repositorio se encarga de:
-
-Obtener equipos.
-Obtener un equipo por ID.
-Obtener solicitudes.
-Obtener una solicitud por ID.
-Crear solicitudes.
-Cancelar solicitudes.
-Actualizar los estados correspondientes.
-
-Los datos son simulados y se mantienen únicamente durante la ejecución de la aplicación.
-
-# 🧩 Definition of Done (DoD) mínima
-
-Un incremento se considera terminado cuando cumple con todos estos criterios:
-
-Compilación y ejecución
-El proyecto compila y puede ejecutarse en el ambiente definido.
-Criterios implementados
-Los criterios de aceptación seleccionados están implementados.
-UI desacoplada
-La interfaz no modifica directamente la fuente de datos.
-ViewModel con UiState
-El ViewModel expone UiState mediante StateFlow de solo lectura.
-Navegación segura
-La navegación transporta identificadores y controla IDs inexistentes.
-Pruebas ejecutadas
-Se ejecutaron los casos acordados y se registraron sus resultados.
-Defectos gestionados
-Los defectos críticos o altos tienen una decisión explícita.
-Confirmación y regresión
-Las correcciones relevantes tienen confirmación y pruebas de regresión.
-Repositorio actualizado
-Git y README están actualizados.
-Demostración y autoría
-El incremento puede demostrarse y cada integrante puede explicar el funcionamiento implementado.
-
-## 📌 Product Backlog inicial
-
-| ID | Historia / necesidad | Prioridad | Riesgo |
-|---|---|---|---|
-| **PB-01** | Consultar catálogo de equipos y disponibilidad. | Alta | Alto |
-| **PB-02** | Consultar detalle de un equipo. | Alta | Medio |
-| **PB-03** | Registrar solicitud de préstamo. | Alta | Alto |
-| **PB-04** | Validar propósito, destino y duración. | Alta | Alto |
-| **PB-05** | Evitar solicitud sobre equipo no disponible. | Alta | Alto |
-| **PB-06** | Evitar duplicación por doble pulsación. | Alta | Alto |
-| **PB-07** | Consultar mis solicitudes. | Media | Medio |
-| **PB-08** | Consultar detalle de solicitud. | Media | Medio |
-| **PB-09** | Cancelar solicitud en estado `SOLICITADA`. | Media | Medio |
-| **PB-10** | Manejar IDs inexistentes y estados vacíos. | Media | Medio |
-| **PB-11** | Mantener interfaz usable con texto aumentado. | Media | Medio |
-| **PB-12** | Documentar arquitectura, pruebas y limitaciones. | Media | Medio |
-
-# 🚧 Limitaciones actuales
-El repositorio es completamente simulado y funciona en memoria.
-Los datos no persisten después de cerrar la aplicación.
-No existe todavía una base de datos local o remota.
-No existe autenticación de usuarios.
-Los cambios de estado del gestor son simulados.
-Las pruebas realizadas son principalmente pruebas manuales sobre el emulador.
-🔮 Posibles mejoras futuras
-Implementar persistencia con Room.
-Agregar autenticación de usuarios.
-Implementar roles reales para aprendiz, instructor y gestor.
-Agregar una API/backend.
-Incorporar notificaciones sobre cambios de estado.
-Agregar filtros y búsqueda en el catálogo.
-Implementar pruebas automatizadas de UI.
-Implementar pruebas unitarias adicionales.
-Mejorar accesibilidad y soporte para TalkBack.
-Registrar historial completo de préstamos.
-
-# 📁 Estructura general
-PrestamoLabCTMA/
-│
-├── app/
-│   └── src/
-│       ├── androidTest/
-│       │
-│       ├── main/
-│       │   └── java/
-│       │       └── com.example.prstamolabctma/
-│       │
-│       └── test/
-│
-├── build.gradle.kts
-├── settings.gradle.kts
-├── gradlew
-├── gradlew.bat
-├── gradle.properties
-├── local.properties
-└── README.md
-👨
-# 💻 Control de versiones
+Prueba de regresión
+
+Se realizó el siguiente procedimiento:
+
+Seleccionar una imagen mediante Photo Picker.
+Guardar la imagen.
+Registrar la solicitud.
+Cerrar la aplicación.
+Abrir nuevamente la aplicación.
+Consultar el detalle de la solicitud.
+Comprobar que la imagen continúe renderizándose correctamente.
+
+### 8. ¿Qué permiso del dispositivo solicitaron y por qué cumple mínimo privilegio?
+
+Se solicitaron los siguientes permisos:
+
+ACCESS_FINE_LOCATION
+
+Se utiliza para obtener la ubicación GPS del dispositivo cuando el usuario necesita adjuntar la ubicación a una solicitud.
+
+POST_NOTIFICATIONS
+
+Se utiliza para mostrar notificaciones contextuales relacionadas con la aplicación.
+
+Estos permisos se solicitan bajo demanda cuando la funcionalidad correspondiente los necesita, en lugar de solicitar todos los permisos al iniciar la aplicación.
+
+Esto permite aplicar el principio de mínimo privilegio, solicitando únicamente los permisos necesarios para cada funcionalidad.
+
+### 9. ¿Qué quality gates utiliza su Pull Request?
+
+Las integraciones hacia la rama principal mediante Pull Requests están respaldadas por GitHub Actions.
+
+Los controles incluyen:
+
+Compilación
+./gradlew build
+Pruebas
+./gradlew test
+Análisis de código
+
+Se realiza la verificación mediante herramientas de análisis estático y linting.
+
+Estos controles permiten detectar errores de compilación, fallos en las pruebas y problemas de calidad antes de integrar los cambios a la rama principal.
+
+### 10. ¿Qué riesgo residual permanece en el incremento actual?
+
+Como riesgo residual se identifica que la sincronización con servicios remotos mediante Retrofit se encuentra preparada a nivel de arquitectura y repositorios, pero el funcionamiento actual se apoya principalmente en Room como fuente local.
+
+Una interrupción prolongada de los servicios remotos puede requerir mecanismos adicionales de reintento y gestión de colas.
+
+Estos mecanismos pueden optimizarse en futuras versiones del proyecto.
+
+# 📱 Funcionamiento de la Aplicación
+
+El flujo principal de PréstamoLab es:
+
+Catálogo de equipos
+↓
+Detalle del equipo
+↓
+Solicitar préstamo
+↓
+Solicitud creada
+↓
+Mis préstamos
+↓
+Consultar solicitud
+↓
+Cancelar solicitud
+
+Durante este flujo, la aplicación debe manejar los siguientes estados:
+
+Loading
+Content
+Empty
+Error
+
+La información sigue un flujo reactivo:
+
+Room
+↓
+Flow
+↓
+Repository
+↓
+ViewModel
+↓
+StateFlow
+↓
+Jetpack Compose
+
+Esto permite que los cambios realizados en la base de datos puedan reflejarse en la interfaz de manera reactiva.
+
+# 🧪 Pruebas y Validación
+
+- Las pruebas automatizadas se ejecutan mediante Gradle.
+
+Ejecutar todas las pruebas
+./gradlew test
+Ejecutar las pruebas unitarias de la aplicación
+./gradlew :app:testDebugUnitTest
+Validaciones principales de Semana 7
+
+- El incremento v0.4.0 debe validar:
+
+Estados Loading.
+Estados Content.
+Estados Empty.
+Estados Error.
+Operaciones suspend.
+Flujos Flow.
+StateFlow.
+Manejo de excepciones.
+Operaciones asíncronas.
+Actualización reactiva de la interfaz.
+Manejo de errores sin cierres abruptos.
+Cancelación de operaciones cuando corresponda.
+
+# 📌 Incrementos del Proyecto
+
+- Semana	Versión	Incremento
+- Semana 5	v0.2.0	Arquitectura base y navegación
+- Semana 6	v0.3.0	Persistencia local con Room
+- Semana 7	v0.4.0	Corrutinas, Flow y estado reactivo
+- Semana 8	v0.5.0	Integración API REST
+- Semana 9	v0.6.0	Capacidades del dispositivo y seguridad
+
+# ▶️ Instrucciones de Ejecución
+
+- Clonar el repositorio.
+- Abrir el proyecto en Android Studio.
+- Sincronizar las dependencias de Gradle.
+- Crear o seleccionar un emulador Android.
+- Ejecutar la aplicación.
+- Explorar el catálogo de equipos.
+- Seleccionar un equipo.
+- Consultar el detalle.
+- Registrar una solicitud de préstamo.
+- Adjuntar evidencia fotográfica cuando corresponda.
+- Capturar la ubicación GPS cuando corresponda.
+- Consultar la solicitud desde Mis préstamos.
+- Cancelar la solicitud cuando corresponda.
+
+# 🔀 Control de Versiones
 
 El proyecto utiliza Git y GitHub para el control de versiones y seguimiento del desarrollo.
 
-Las funcionalidades se desarrollan mediante ramas de trabajo y posteriormente se integran al proyecto principal.
+Se utilizan:
 
-## 📱 Ejecución
+Ramas de trabajo.
+Commits.
+Pull Requests.
+GitHub Actions.
+Pruebas automatizadas.
+Trazabilidad entre Historias de Usuario, código y pruebas.
 
-Para ejecutar el proyecto:
+# 📚 Documentación del Proyecto
 
-Abrir el proyecto en Android Studio.
-Esperar la sincronización de Gradle.
-Seleccionar un dispositivo físico o emulador.
-Ejecutar la aplicación.
-Ingresar al catálogo de equipos.
-Seleccionar un equipo disponible.
-Registrar una solicitud con datos válidos.
-Consultar la solicitud desde Mis préstamos.
+La documentación del proyecto incluye:
 
-## 📌 Estado del proyecto
-
-Estado: En desarrollo / primer incremento funcional.
-
-El flujo principal de consulta de equipos, registro de solicitudes, consulta de préstamos y cancelación se encuentra implementado y probado mediante el emulador Android.
+- Product Goal.
+- Product Backlog.
+- Historias de Usuario.
+- Criterios de aceptación.
+- Matriz de riesgos.
+- Casos de prueba.
+- Matriz de trazabilidad.
+- Evidencias de los incrementos.
+- Documentación técnica.
+- Resultados de pruebas.
+- Evidencias de Scrum.
+- Definition of Done.
+- Sprint Review.
+- Retrospective.
