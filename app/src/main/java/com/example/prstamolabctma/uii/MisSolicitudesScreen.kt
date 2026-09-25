@@ -8,12 +8,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.prstamolabctma.model.EstadoSolicitud
 import com.example.prstamolabctma.ui.state.OperationState
 import com.example.prstamolabctma.ui.state.UiState
+import com.example.prstamolabctma.util.BiometricHelper
 import com.example.prstamolabctma.viewmodel.PrestamoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -23,6 +26,26 @@ fun MisSolicitudesScreen(navController: NavController, viewModel: PrestamoViewMo
     val operacionState by viewModel.operacionState.collectAsStateWithLifecycle()
     val refreshState by viewModel.refreshState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    var solicitudACancelarId by remember { mutableStateOf<Int?>(null) }
+
+    val context = LocalContext.current
+    val activity = context as? FragmentActivity
+
+    if (solicitudACancelarId != null) {
+        PinAuthDialog(
+            titulo = "Firma de Cancelación (PIN)",
+            subtitulo = "Ingresa tu PIN de seguridad (PIN por defecto: 1234)",
+            onConfirmar = {
+                val id = solicitudACancelarId!!
+                solicitudACancelarId = null
+                viewModel.cancelarSolicitud(id)
+            },
+            onDismiss = {
+                solicitudACancelarId = null
+            }
+        )
+    }
 
     LaunchedEffect(operacionState) {
         when (val state = operacionState) {
@@ -107,11 +130,29 @@ fun MisSolicitudesScreen(navController: NavController, viewModel: PrestamoViewMo
                                     if (solicitud.estado == EstadoSolicitud.SOLICITADA) {
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Button(
-                                            onClick = { viewModel.cancelarSolicitud(solicitud.id) },
+                                            onClick = {
+                                                fun procesarCancelacion() {
+                                                    viewModel.cancelarSolicitud(solicitud.id)
+                                                }
+
+                                                if (activity != null && BiometricHelper.canAuthenticate(activity)) {
+                                                    BiometricHelper.showBiometricPrompt(
+                                                        activity = activity,
+                                                        titulo = "Firma Biométrica de Cancelación",
+                                                        subtitulo = "Confirma con tu huella/rostro para cancelar la solicitud #${solicitud.id}",
+                                                        onSuccess = { procesarCancelacion() },
+                                                        onError = {
+                                                            solicitudACancelarId = solicitud.id
+                                                        }
+                                                    )
+                                                } else {
+                                                    solicitudACancelarId = solicitud.id
+                                                }
+                                            },
                                             enabled = operacionState !is OperationState.EnCurso,
                                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                                         ) {
-                                            Text("Cancelar solicitud")
+                                            Text("Cancelar solicitud 🔒")
                                         }
                                     }
                                 }

@@ -64,6 +64,9 @@ dependencies {
     // Coil Image Loading
     implementation(libs.coil.compose)
 
+    // Biometrics
+    implementation(libs.androidx.biometric)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation("androidx.test:core-ktx:1.6.1")
